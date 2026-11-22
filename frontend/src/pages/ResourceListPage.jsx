@@ -274,7 +274,8 @@ export default function ResourceListPage() {
               <div className="p-5 pt-0">
                 <Link
                   to={`/resources/${resource.id}`}
-                  className="w-full py-2.5 px-4 rounded-xl bg-campus-800 hover:bg-campus-900 text-white font-semibold text-xs text-center block shadow-xs transition-colors"
+                  style={{ backgroundColor: '#8B1E2D', color: '#ffffff' }}
+                  className="w-full py-2.5 px-4 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs text-center block shadow-md hover:shadow-lg transition-all"
                 >
                   View 30-Min Schedule & Reserve
                 </Link>

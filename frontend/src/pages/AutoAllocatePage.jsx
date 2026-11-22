@@ -324,7 +324,8 @@ export default function AutoAllocatePage() {
               type="button"
               onClick={handleInstantAutoAllocate}
               disabled={loading}
-              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-xs shadow-xs transition-colors flex items-center justify-center space-x-2"
+              style={{ backgroundColor: '#8B1E2D', color: '#ffffff' }}
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md transition-colors flex items-center justify-center space-x-2 cursor-pointer"
             >
               <Sparkles className="w-4 h-4" />
               <span>{loading && mode === 'instant' ? 'Allocating & Locking...' : 'Instant Auto-Allocate & Book'}</span>
@@ -395,10 +396,12 @@ export default function AutoAllocatePage() {
                     <button
                       onClick={() => handleBookCandidate(cand)}
                       disabled={bookingCandidateId === cand.resource.id}
-                      className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center space-x-1.5"
+                      style={{ backgroundColor: '#8B1E2D', color: '#ffffff' }}
+                      className="w-full md:w-auto px-6 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
                     >
-                      <span>{bookingCandidateId === cand.resource.id ? 'Reserving...' : 'Book This Venue'}</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <CheckCircle2 className="w-4 h-4 text-white" />
+                      <span>{bookingCandidateId === cand.resource.id ? 'Acquiring Locks...' : 'Book This Venue'}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-white" />
                     </button>
                   ) : (
                     <Link
@@ -465,13 +468,14 @@ export default function AutoAllocatePage() {
               <div className="pt-2 flex flex-wrap gap-3">
                 <Link
                   to="/my-bookings"
-                  className="px-5 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-xs transition-colors"
+                  style={{ backgroundColor: '#8B1E2D', color: '#ffffff' }}
+                  className="px-5 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md transition-colors"
                 >
                   View in My Reservations
                 </Link>
                 <button
                   onClick={() => setAllocationResult(null)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-50"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-50 cursor-pointer"
                 >
                   Search Again
                 </button>
@@ -524,7 +528,8 @@ export default function AutoAllocatePage() {
 
                       <button
                         onClick={() => handleBookAlternative(alt)}
-                        className="px-4 py-2 rounded-lg bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-xs shadow-xs transition-colors shrink-0 flex items-center justify-center space-x-1.5"
+                        style={{ backgroundColor: '#8B1E2D', color: '#ffffff' }}
+                        className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md transition-colors shrink-0 flex items-center justify-center space-x-1.5 cursor-pointer"
                       >
                         <span>Confirm This Option</span>
                         <ArrowRight className="w-3.5 h-3.5" />

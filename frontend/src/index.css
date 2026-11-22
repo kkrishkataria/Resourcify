@@ -7,3 +7,30 @@
     @apply bg-slate-50 text-slate-800 font-sans;
   }
 }
+
+/* Ensure Thapar Maroon Primary Branding renders with high contrast regardless of Tailwind purge */
+.bg-thapar-800 {
+  background-color: #8B1E2D !important;
+}
+
+.hover\:bg-thapar-900:hover {
+  background-color: #731C26 !important;
+}
+
+.text-thapar-800 {
+  color: #8B1E2D !important;
+}
+
+.border-thapar-800 {
+  border-color: #8B1E2D !important;
+}
+
+.btn-thapar {
+  background-color: #8B1E2D !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+.btn-thapar:hover {
+  background-color: #731C26 !important;
+}
