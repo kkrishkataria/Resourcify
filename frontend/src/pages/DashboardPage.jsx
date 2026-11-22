@@ -19,6 +19,7 @@ import {
   LogOut,
   Lock,
 } from 'lucide-react';
+import CheckInTimerButton from '../components/CheckInTimerButton.jsx';
 import { getCheckInLockState } from '../utils/checkInHelper.js';
 
 export default function DashboardPage() {
@@ -294,45 +295,18 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center space-x-2.5">
-                    {booking.status === 'CONFIRMED' && (
-                      lockState.isLocked ? (
-                        <button
-                          disabled
-                          className="px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 font-bold text-xs flex items-center space-x-1.5 cursor-not-allowed opacity-80"
-                          title={lockState.reason}
-                        >
-                          <Lock className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{lockState.buttonLabel}</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleCheckIn(booking.id)}
-                          disabled={actionLoading === booking.id}
-                          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>{actionLoading === booking.id ? 'Verifying...' : 'Check In'}</span>
-                        </button>
-                      )
-                    )}
-
-                    {booking.status === 'CHECKED_IN' && (
-                      <button
-                        onClick={() => handleCheckOut(booking.id)}
-                        disabled={actionLoading === booking.id}
-                        style={{ backgroundColor: '#8B1E2D' }}
-                        className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white text-xs font-bold shadow-md transition-all flex items-center space-x-1.5 cursor-pointer"
-                      >
-                        <LogOut className="w-3.5 h-3.5 text-white" />
-                        <span>{actionLoading === booking.id ? 'Checking Out...' : 'Check Out Now'}</span>
-                      </button>
-                    )}
+                  <div className="flex items-center space-x-3">
+                    <CheckInTimerButton
+                      booking={booking}
+                      onCheckIn={handleCheckIn}
+                      onCheckOut={handleCheckOut}
+                      actionLoading={actionLoading}
+                    />
 
                     <button
                       onClick={() => handleCancel(booking.id)}
                       disabled={actionLoading === booking.id}
-                      className="px-3.5 py-2 rounded-lg border border-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-slate-700 text-xs font-medium transition-colors cursor-pointer self-start mt-0.5"
                     >
                       Cancel
                     </button>

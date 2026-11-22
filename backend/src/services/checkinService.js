@@ -45,10 +45,11 @@ export class CheckInService {
     } else {
       const [year, month, day] = booking.date.split('-').map(Number);
       const [hours, minutes] = booking.startTime.split(':').map(Number);
-      opensAt = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+      opensAt = new Date(year, month - 1, day, hours, minutes, 0);
     }
 
-    if (now.getTime() < opensAt.getTime() - 60 * 1000) {
+    // Exact second comparison (with 1s margin for network latency)
+    if (now.getTime() < opensAt.getTime() - 1000) {
       const err = new Error(`Check-in is locked until session start time (${booking.startTime}). Please check in when your reservation begins.`);
       err.statusCode = 400;
       err.code = 'CHECKIN_LOCKED_BEFORE_START';

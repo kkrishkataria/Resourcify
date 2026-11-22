@@ -71,7 +71,7 @@ export function isWithinOperatingHours(startTime, endTime, operatingHours) {
 export function calculateSessionStartTime(date, startTime) {
   const [year, month, day] = date.split('-').map(Number);
   const [hours, minutes] = startTime.split(':').map(Number);
-  return new Date(Date.UTC(year, month - 1, day, hours, minutes)).toISOString();
+  return new Date(year, month - 1, day, hours, minutes, 0).toISOString();
 }
 
 /**
@@ -82,7 +82,7 @@ export function calculateCheckInDeadline(date, startTime, gracePeriodMinutes = 1
   const [year, month, day] = date.split('-').map(Number);
   const [hours, minutes] = startTime.split(':').map(Number);
   
-  const startDateTime = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+  const startDateTime = new Date(year, month - 1, day, hours, minutes, 0);
   const deadlineDateTime = new Date(startDateTime.getTime() + gracePeriodMinutes * 60 * 1000);
   return deadlineDateTime.toISOString();
 }

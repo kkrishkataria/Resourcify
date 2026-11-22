@@ -17,6 +17,7 @@ import {
   LogOut,
   Lock,
 } from 'lucide-react';
+import CheckInTimerButton from '../components/CheckInTimerButton.jsx';
 import { getCheckInLockState } from '../utils/checkInHelper.js';
 
 export default function CheckInPage() {
@@ -226,31 +227,18 @@ export default function CheckInPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
                       <div className="p-2 border border-slate-200 rounded-xl bg-slate-50 text-center hidden sm:block">
                         <QrCode className="w-10 h-10 text-slate-700 mx-auto" />
                         <span className="text-[9px] uppercase font-bold text-slate-400 block mt-0.5">TIET Code</span>
                       </div>
 
-                      {lockState.isLocked ? (
-                        <button
-                          disabled
-                          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 font-bold text-xs flex items-center justify-center space-x-2 cursor-not-allowed opacity-80"
-                          title={lockState.reason}
-                        >
-                          <Lock className="w-4 h-4 text-slate-400" />
-                          <span>{lockState.buttonLabel}</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleCheckIn(b.id)}
-                          disabled={actionLoading === b.id}
-                          className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center space-x-2 cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>{actionLoading === b.id ? 'Verifying...' : 'Confirm Check-In Now'}</span>
-                        </button>
-                      )}
+                      <CheckInTimerButton
+                        booking={b}
+                        onCheckIn={handleCheckIn}
+                        actionLoading={actionLoading}
+                        showNotice={false}
+                      />
                     </div>
                   </div>
                 );
