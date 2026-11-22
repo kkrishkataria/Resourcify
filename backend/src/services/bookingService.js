@@ -8,6 +8,7 @@ import {
   timeToMinutes,
   isWithinOperatingHours,
   calculateCheckInDeadline,
+  calculateSessionStartTime,
 } from '../utils/timeSlots.js';
 import { config } from '../config/aws.js';
 
@@ -119,6 +120,7 @@ export class BookingService {
       purpose: purpose || 'Academic study session',
       attendeesCount: attendees,
       status: 'CONFIRMED',
+      checkInOpensAt: calculateSessionStartTime(date, startTime),
       checkInDeadline,
     };
 

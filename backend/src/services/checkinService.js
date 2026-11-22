@@ -37,6 +37,24 @@ export class CheckInService {
     }
 
     const now = new Date();
+
+    // Check if session start time has arrived (check-in is locked before start time)
+    let opensAt;
+    if (booking.checkInOpensAt) {
+      opensAt = new Date(booking.checkInOpensAt);
+    } else {
+      const [year, month, day] = booking.date.split('-').map(Number);
+      const [hours, minutes] = booking.startTime.split(':').map(Number);
+      opensAt = new Date(Date.UTC(year, month - 1, day, hours, minutes));
+    }
+
+    if (now.getTime() < opensAt.getTime() - 60 * 1000) {
+      const err = new Error(`Check-in is locked until session start time (${booking.startTime}). Please check in when your reservation begins.`);
+      err.statusCode = 400;
+      err.code = 'CHECKIN_LOCKED_BEFORE_START';
+      throw err;
+    }
+
     const deadline = new Date(booking.checkInDeadline);
 
     if (now.getTime() > deadline.getTime()) {

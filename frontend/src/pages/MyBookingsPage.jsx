@@ -15,15 +15,19 @@ import {
   AlertTriangle,
   QrCode,
   LogOut,
+  Lock,
 } from 'lucide-react';
+import { getCheckInLockState } from '../utils/checkInHelper.js';
 
 export default function MyBookingsPage() {
   const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('ALL');
+  const [dateFilter, setDateFilter] = useState('ALL');
   const [actionLoading, setActionLoading] = useState(null);
   const [message, setMessage] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const fetchBookings = async () => {
     try {
@@ -97,8 +101,9 @@ export default function MyBookingsPage() {
   };
 
   const filteredBookings = bookings.filter((b) => {
-    if (filterStatus === 'ALL') return true;
-    return b.status === filterStatus;
+    const statusMatch = filterStatus === 'ALL' || b.status === filterStatus;
+    const dateMatch = dateFilter === 'ALL' || b.date === todayStr;
+    return statusMatch && dateMatch;
   });
 
   return (
@@ -127,21 +132,47 @@ export default function MyBookingsPage() {
         </div>
       )}
 
-      {/* Status Filter Tabs */}
-      <div className="flex items-center space-x-2 border-b border-slate-200 pb-3 overflow-x-auto text-xs font-semibold">
-        {['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].map((status) => (
+      {/* Status & Date Filter Tabs */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div className="flex items-center space-x-2 overflow-x-auto text-xs font-semibold">
+          {['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilterStatus(status)}
+              className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+                filterStatus === status
+                  ? 'bg-campus-800 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              {status.replace(/_/g, ' ')}
+            </button>
+          ))}
+        </div>
+
+        {/* Date Filter Segmented Switch */}
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-semibold self-start sm:self-auto">
           <button
-            key={status}
-            onClick={() => setFilterStatus(status)}
-            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
-              filterStatus === status
-                ? 'bg-campus-800 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            onClick={() => setDateFilter('ALL')}
+            className={`px-3 py-1.5 rounded-lg transition-all ${
+              dateFilter === 'ALL'
+                ? 'bg-white text-slate-900 shadow-2xs'
+                : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            {status.replace(/_/g, ' ')}
+            All Dates
           </button>
-        ))}
+          <button
+            onClick={() => setDateFilter('TODAY')}
+            className={`px-3 py-1.5 rounded-lg transition-all ${
+              dateFilter === 'TODAY'
+                ? 'bg-white text-slate-900 shadow-2xs'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            Today's Bookings
+          </button>
+        </div>
       </div>
 
       {/* Bookings List */}
@@ -156,92 +187,113 @@ export default function MyBookingsPage() {
         />
       ) : (
         <div className="space-y-4">
-          {filteredBookings.map((b) => (
-            <div
-              key={b.id}
-              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-5"
-            >
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <StatusBadge status={b.status} />
-                  <span className="text-[11px] text-slate-400 font-mono">Ref: {b.id.slice(0, 14)}</span>
-                </div>
+          {filteredBookings.map((b) => {
+            const lockState = getCheckInLockState(b);
 
-                <h3 className="text-base font-bold text-slate-900">{b.resourceName}</h3>
+            return (
+              <div
+                key={b.id}
+                className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-5"
+              >
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <StatusBadge status={b.status} />
+                    <span className="text-[11px] text-slate-400 font-mono">Ref: {b.id.slice(0, 14)}</span>
+                    {b.status === 'CONFIRMED' && lockState.isLocked && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 flex items-center space-x-1">
+                        <Lock className="w-3 h-3 text-amber-600" />
+                        <span>{lockState.badgeLabel}</span>
+                      </span>
+                    )}
+                  </div>
 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-600">
-                  <span className="flex items-center space-x-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{formatDate(b.date)}</span>
-                  </span>
-                  <span className="flex items-center space-x-1 font-semibold text-slate-800">
-                    <Clock className="w-3.5 h-3.5 text-campus-600" />
-                    <span>{b.startTime} - {b.endTime}</span>
-                  </span>
-                  <span>• {b.attendeesCount || 1} Attendees</span>
-                  <span>• Purpose: {b.purpose}</span>
-                </div>
+                  <h3 className="text-base font-bold text-slate-900">{b.resourceName}</h3>
 
-                {/* Slots and deadline note */}
-                <div className="text-[11px] text-slate-400 flex items-center space-x-3 pt-0.5">
-                  <span>Occupies {b.slotKeys?.length || 1} atomic slots</span>
-                  {b.status === 'CONFIRMED' && (
-                    <span className="text-amber-600 font-medium">
-                      Check-in Deadline: {new Date(b.checkInDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-600">
+                    <span className="flex items-center space-x-1">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{formatDate(b.date)}</span>
                     </span>
+                    <span className="flex items-center space-x-1 font-semibold text-slate-800">
+                      <Clock className="w-3.5 h-3.5 text-campus-600" />
+                      <span>{b.startTime} - {b.endTime}</span>
+                    </span>
+                    <span>• {b.attendeesCount || 1} Attendees</span>
+                    <span>• Purpose: {b.purpose}</span>
+                  </div>
+
+                  {/* Slots and deadline note */}
+                  <div className="text-[11px] text-slate-400 flex items-center space-x-3 pt-0.5">
+                    <span>Occupies {b.slotKeys?.length || 1} atomic slots</span>
+                    {b.status === 'CONFIRMED' && (
+                      <span className="text-amber-600 font-medium">
+                        {lockState.isLocked ? lockState.reason : `Check-in Deadline: ${new Date(b.checkInDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center space-x-2.5 shrink-0">
+                  {b.status === 'CONFIRMED' && (
+                    lockState.isLocked ? (
+                      <button
+                        disabled
+                        className="px-4 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-400 font-bold text-xs flex items-center space-x-1.5 cursor-not-allowed opacity-80"
+                        title={lockState.reason}
+                      >
+                        <Lock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{lockState.buttonLabel}</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleCheckIn(b.id)}
+                        disabled={actionLoading === b.id}
+                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>{actionLoading === b.id ? 'Checking In...' : 'Check In'}</span>
+                      </button>
+                    )
+                  )}
+
+                  {b.status === 'CONFIRMED' && (
+                    <button
+                      onClick={() => handleCancel(b.id)}
+                      disabled={actionLoading === b.id}
+                      className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  )}
+
+                  {b.status === 'CHECKED_IN' && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
+                        Checked In at {new Date(b.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <button
+                        onClick={() => handleCheckOut(b.id)}
+                        disabled={actionLoading === b.id}
+                        style={{ backgroundColor: '#8B1E2D' }}
+                        className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <LogOut className="w-3.5 h-3.5 text-white" />
+                        <span>{actionLoading === b.id ? 'Checking Out...' : 'Check Out Now'}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {b.status === 'COMPLETED' && (
+                    <div className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center space-x-1">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Completed & Checked Out</span>
+                    </div>
                   )}
                 </div>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center space-x-2.5 shrink-0">
-                {b.status === 'CONFIRMED' && (
-                  <button
-                    onClick={() => handleCheckIn(b.id)}
-                    disabled={actionLoading === b.id}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors flex items-center space-x-1.5"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{actionLoading === b.id ? 'Checking In...' : 'Check In'}</span>
-                  </button>
-                )}
-
-                {b.status === 'CONFIRMED' && (
-                  <button
-                    onClick={() => handleCancel(b.id)}
-                    disabled={actionLoading === b.id}
-                    className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-slate-700 text-xs font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                )}
-
-                {b.status === 'CHECKED_IN' && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-                      Checked In at {new Date(b.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    <button
-                      onClick={() => handleCheckOut(b.id)}
-                      disabled={actionLoading === b.id}
-                      style={{ backgroundColor: '#8B1E2D' }}
-                      className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
-                    >
-                      <LogOut className="w-3.5 h-3.5 text-white" />
-                      <span>{actionLoading === b.id ? 'Checking Out...' : 'Check Out Now'}</span>
-                    </button>
-                  </div>
-                )}
-
-                {b.status === 'COMPLETED' && (
-                  <div className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center space-x-1">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />
-                    <span>Completed & Checked Out</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -66,6 +66,15 @@ export function isWithinOperatingHours(startTime, endTime, operatingHours) {
 }
 
 /**
+ * Computes the session start time ISO string for a booking date and startTime.
+ */
+export function calculateSessionStartTime(date, startTime) {
+  const [year, month, day] = date.split('-').map(Number);
+  const [hours, minutes] = startTime.split(':').map(Number);
+  return new Date(Date.UTC(year, month - 1, day, hours, minutes)).toISOString();
+}
+
+/**
  * Computes the check-in deadline ISO string:
  * Starts at the booking start time on the given date + gracePeriodMinutes.
  */

@@ -43,8 +43,9 @@ describe('Check-In and Auto-Release System', () => {
       user
     );
 
-    // Future deadline
+    // Active check-in window (session started, deadline in future)
     await bookingRepository.updateStatus(booking.id, 'CONFIRMED', {
+      checkInOpensAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
       checkInDeadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     });
 
@@ -52,6 +53,26 @@ describe('Check-In and Auto-Release System', () => {
     expect(result.success).toBe(true);
     expect(result.booking.status).toBe('CHECKED_IN');
     expect(result.booking.checkedInAt).toBeDefined();
+  });
+
+  it('should reject check-in and remain locked if current time is before session start time', async () => {
+    const booking = await bookingService.createBooking(
+      {
+        resourceId: 'res-checkin-test',
+        date: '2026-11-29',
+        startTime: '18:00',
+        endTime: '19:00',
+        purpose: 'Future locked session',
+      },
+      user
+    );
+
+    // Set checkInOpensAt in future
+    await bookingRepository.updateStatus(booking.id, 'CONFIRMED', {
+      checkInOpensAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
+
+    await expect(checkInService.checkIn(booking.id, user)).rejects.toThrow(/locked until session start time/i);
   });
 
   it('should successfully check out a checked-in booking, mark it COMPLETED, and release slot locks', async () => {
@@ -67,6 +88,10 @@ describe('Check-In and Auto-Release System', () => {
     );
 
     // Check in first
+    await bookingRepository.updateStatus(booking.id, 'CONFIRMED', {
+      checkInOpensAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      checkInDeadline: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    });
     await checkInService.checkIn(booking.id, user);
 
     // Verify slots are occupied
