@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal.jsx';
 import api from '../services/api.js';
-import { Clock, Calendar, Users, AlertCircle } from 'lucide-react';
+import { Clock, Calendar, Users, AlertCircle, CheckCircle2 } from 'lucide-react';
 import AlternativesModal from './AlternativesModal.jsx';
 
 export default function BookingModal({
@@ -241,20 +241,26 @@ export default function BookingModal({
             />
           </div>
 
-          <div className="pt-2 flex items-center justify-end space-x-2">
+          <div className="pt-4 mt-2 border-t border-slate-200 flex items-center justify-end space-x-3 sticky bottom-0 bg-white py-2 z-10">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs font-bold hover:bg-slate-100 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white text-xs font-semibold shadow-xs transition-colors"
+              style={{ backgroundColor: '#8B1E2D' }}
+              className="px-6 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center space-x-2 disabled:opacity-50 cursor-pointer"
             >
-              {loading ? 'Acquiring DynamoDB Slot Locks...' : 'Confirm Atomic Reservation'}
+              <CheckCircle2 className="w-4 h-4 text-white" />
+              <span>
+                {loading
+                  ? 'Acquiring DynamoDB Slot Locks...'
+                  : `Confirm & Book Venue (${startTime} - ${endTime})`}
+              </span>
             </button>
           </div>
         </form>

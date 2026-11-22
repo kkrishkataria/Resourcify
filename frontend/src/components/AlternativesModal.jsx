@@ -71,9 +71,10 @@ export default function AlternativesModal({
 
                 <button
                   onClick={() => onSelectAlternative(alt)}
-                  className="px-4 py-2 rounded-lg bg-campus-800 hover:bg-campus-900 text-white font-semibold text-xs shadow-xs transition-colors shrink-0 flex items-center justify-center space-x-1.5"
+                  style={{ backgroundColor: '#8B1E2D' }}
+                  className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md transition-all shrink-0 flex items-center justify-center space-x-1.5 cursor-pointer"
                 >
-                  <span>Book This</span>
+                  <span>Book This Alternative</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

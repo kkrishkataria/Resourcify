@@ -152,9 +152,11 @@ export default function ResourceDetailPage() {
                 setSelectedSlotTime('09:00');
                 setBookingModalOpen(true);
               }}
-              className="px-4 py-2 rounded-xl bg-campus-800 hover:bg-campus-900 text-white font-semibold text-xs shadow-xs transition-colors"
+              style={{ backgroundColor: '#8B1E2D' }}
+              className="px-5 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md hover:shadow-lg transition-all flex items-center space-x-1.5 cursor-pointer"
             >
-              Direct Reserve Form
+              <Calendar className="w-4 h-4 text-white" />
+              <span>Book This Venue</span>
             </button>
           </div>
         </div>
