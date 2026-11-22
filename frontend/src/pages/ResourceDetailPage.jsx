@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import BookingModal from '../components/BookingModal.jsx';
@@ -18,6 +19,10 @@ import {
 
 export default function ResourceDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+
   const [resource, setResource] = useState(null);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [availability, setAvailability] = useState(null);
@@ -48,6 +53,15 @@ export default function ResourceDetailPage() {
   }, [id, date]);
 
   const handleSlotClick = (slot) => {
+    if (!isAuthenticated) {
+      navigate('/login', {
+        state: {
+          from: location,
+          message: 'Please sign in with your Thapar roll number or email to book this time slot.',
+        },
+      });
+      return;
+    }
     if (slot.available) {
       setSelectedSlotTime(slot.timeSlot);
       setBookingModalOpen(true);
@@ -149,6 +163,15 @@ export default function ResourceDetailPage() {
 
             <button
               onClick={() => {
+                if (!isAuthenticated) {
+                  navigate('/login', {
+                    state: {
+                      from: location,
+                      message: 'Please sign in with your Thapar roll number or email to book this venue.',
+                    },
+                  });
+                  return;
+                }
                 setSelectedSlotTime('09:00');
                 setBookingModalOpen(true);
               }}

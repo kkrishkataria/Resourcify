@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   Eye,
   LogOut,
+  LogIn,
   ChevronDown,
   Shield,
   ArrowRightLeft,
@@ -66,7 +67,27 @@ export default function Navbar() {
 
           {/* Navigation Links (Tailored for Role) */}
           <div className="hidden md:flex items-center space-x-1 no-scrollbar">
-            {isAdmin ? (
+            {!isAuthenticated ? (
+              /* GUEST / UNAUTHENTICATED NAVIGATION */
+              <>
+                <Link
+                  to="/resources"
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap shrink-0 transition-colors ${
+                    isActive('/resources')
+                      ? 'bg-thapar-50 text-thapar-800 font-bold border border-thapar-200 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                  }`}
+                >
+                  Browse Campus Facilities
+                </Link>
+                <Link
+                  to="/login"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-800 hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
+                >
+                  Sign in to Reserve Venues & View Bookings
+                </Link>
+              </>
+            ) : isAdmin ? (
               /* ADMIN SPECIFIC NAVIGATION */
               <>
                 <Link
@@ -288,9 +309,10 @@ export default function Navbar() {
             ) : (
               <Link
                 to="/login"
-                className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white text-xs font-bold transition-colors shadow-xs"
+                className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white text-xs font-bold transition-all shadow-xs flex items-center space-x-1.5 cursor-pointer"
               >
-                Sign In
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Sign In</span>
               </Link>
             )}
           </div>

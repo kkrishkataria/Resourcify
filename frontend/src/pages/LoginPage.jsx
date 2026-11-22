@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth, THAPAR_DEMO_ACCOUNTS } from '../context/AuthContext.jsx';
 import {
   GraduationCap,
@@ -13,11 +13,13 @@ import {
   EyeOff,
   Building2,
   CalendarCheck,
+  AlertCircle,
 } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, register, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
   const [showPassword, setShowPassword] = useState(false);
@@ -52,11 +54,9 @@ export default function LoginPage() {
 
     const res = await login(loginEmail, loginPassword);
     if (res.success) {
-      if (res.user?.role === 'ADMIN') {
-        navigate('/admin/analytics');
-      } else {
-        navigate('/dashboard');
-      }
+      const defaultDest = res.user?.role === 'ADMIN' ? '/admin/analytics' : '/dashboard';
+      const fromPath = location.state?.from?.pathname || defaultDest;
+      navigate(fromPath, { replace: true });
     } else {
       setErrorMessage(res.error);
     }
@@ -87,11 +87,9 @@ export default function LoginPage() {
     });
 
     if (res.success) {
-      if (res.user?.role === 'ADMIN') {
-        navigate('/admin/analytics');
-      } else {
-        navigate('/dashboard');
-      }
+      const defaultDest = res.user?.role === 'ADMIN' ? '/admin/analytics' : '/dashboard';
+      const fromPath = location.state?.from?.pathname || defaultDest;
+      navigate(fromPath, { replace: true });
     } else {
       setErrorMessage(res.error);
     }
@@ -182,6 +180,13 @@ export default function LoginPage() {
               Universal default password: <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-slate-800 font-bold">Thapar@2026</code>
             </p>
           </div>
+
+          {location.state?.message && !errorMessage && !successMessage && (
+            <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs font-semibold flex items-center space-x-2.5 shadow-2xs">
+              <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+              <span>{location.state.message}</span>
+            </div>
+          )}
 
           {errorMessage && (
             <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium">

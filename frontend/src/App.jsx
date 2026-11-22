@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import ResourceListPage from './pages/ResourceListPage.jsx';
 import ResourceDetailPage from './pages/ResourceDetailPage.jsx';
@@ -19,18 +20,71 @@ export default function App() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
+          
+          {/* Public / Browsable Routes */}
           <Route path="/resources" element={<ResourceListPage />} />
           <Route path="/resources/:id" element={<ResourceDetailPage />} />
-          <Route path="/auto-allocate" element={<AutoAllocatePage />} />
-          <Route path="/my-bookings" element={<MyBookingsPage />} />
-          <Route path="/checkin" element={<CheckInPage />} />
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Admin Routes */}
-          <Route path="/admin/analytics" element={<AdminDashboardPage />} />
-          <Route path="/admin/resources" element={<AdminResourcesPage />} />
-          <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+          {/* Protected User Routes (Requires Sign-In to Book or View Reservations) */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/auto-allocate"
+            element={
+              <ProtectedRoute>
+                <AutoAllocatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-bookings"
+            element={
+              <ProtectedRoute>
+                <MyBookingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/checkin"
+            element={
+              <ProtectedRoute>
+                <CheckInPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Admin Routes (Requires Sign-In & ADMIN Role) */}
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/resources"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminResourcesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/bookings"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminBookingsPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Catch-all fallback */}
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
