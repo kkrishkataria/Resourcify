@@ -1,0 +1,211 @@
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
+import api from '../services/api.js';
+import StatusBadge from '../components/StatusBadge.jsx';
+import LoadingSpinner from '../components/LoadingSpinner.jsx';
+import EmptyState from '../components/EmptyState.jsx';
+import { formatCategory, formatDate } from '../utils/formatters.js';
+import {
+  Calendar,
+  Clock,
+  Building,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  QrCode,
+} from 'lucide-react';
+
+export default function MyBookingsPage() {
+  const { user } = useAuth();
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [actionLoading, setActionLoading] = useState(null);
+  const [message, setMessage] = useState('');
+
+  const fetchBookings = async () => {
+    try {
+      const res = await api.get('/bookings');
+      if (res.data?.success) {
+        setBookings(res.data.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to load bookings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, [user]);
+
+  const handleCheckIn = async (bookingId) => {
+    setActionLoading(bookingId);
+    setMessage('');
+    try {
+      const res = await api.post(`/bookings/${bookingId}/checkin`);
+      if (res.data?.success) {
+        setMessage('Check-in confirmed successfully! Welcome to your reserved facility.');
+        fetchBookings();
+      }
+    } catch (err) {
+      setMessage(`Check-in failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancel = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking? This will immediately free all associated 30-min slot locks.')) {
+      return;
+    }
+    setActionLoading(bookingId);
+    setMessage('');
+    try {
+      const res = await api.delete(`/bookings/${bookingId}`);
+      if (res.data?.success) {
+        setMessage('Booking cancelled and slot locks released.');
+        fetchBookings();
+      }
+    } catch (err) {
+      setMessage(`Cancellation failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const filteredBookings = bookings.filter((b) => {
+    if (filterStatus === 'ALL') return true;
+    return b.status === filterStatus;
+  });
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">My Reservations</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Track confirmed bookings, perform check-in before deadline, or cancel to free slots.
+          </p>
+        </div>
+        <Link
+          to="/resources"
+          className="px-4 py-2 rounded-xl bg-campus-800 hover:bg-campus-900 text-white font-semibold text-xs shadow-xs transition-colors self-start"
+        >
+          + New Booking
+        </Link>
+      </div>
+
+      {message && (
+        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-sm flex items-center justify-between">
+          <span>{message}</span>
+          <button onClick={() => setMessage('')} className="text-blue-600 font-bold text-xs">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Status Filter Tabs */}
+      <div className="flex items-center space-x-2 border-b border-slate-200 pb-3 overflow-x-auto text-xs font-semibold">
+        {['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW'].map((status) => (
+          <button
+            key={status}
+            onClick={() => setFilterStatus(status)}
+            className={`px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
+              filterStatus === status
+                ? 'bg-campus-800 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            {status.replace(/_/g, ' ')}
+          </button>
+        ))}
+      </div>
+
+      {/* Bookings List */}
+      {loading ? (
+        <LoadingSpinner message="Retrieving your bookings..." />
+      ) : filteredBookings.length === 0 ? (
+        <EmptyState
+          title="No reservations found"
+          description={`You do not have any reservations under '${filterStatus}'.`}
+          actionText="Browse Available Facilities"
+          onAction={() => (window.location.href = '/resources')}
+        />
+      ) : (
+        <div className="space-y-4">
+          {filteredBookings.map((b) => (
+            <div
+              key={b.id}
+              className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-5"
+            >
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <StatusBadge status={b.status} />
+                  <span className="text-[11px] text-slate-400 font-mono">Ref: {b.id.slice(0, 14)}</span>
+                </div>
+
+                <h3 className="text-base font-bold text-slate-900">{b.resourceName}</h3>
+
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-slate-600">
+                  <span className="flex items-center space-x-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{formatDate(b.date)}</span>
+                  </span>
+                  <span className="flex items-center space-x-1 font-semibold text-slate-800">
+                    <Clock className="w-3.5 h-3.5 text-campus-600" />
+                    <span>{b.startTime} - {b.endTime}</span>
+                  </span>
+                  <span>• {b.attendeesCount || 1} Attendees</span>
+                  <span>• Purpose: {b.purpose}</span>
+                </div>
+
+                {/* Slots and deadline note */}
+                <div className="text-[11px] text-slate-400 flex items-center space-x-3 pt-0.5">
+                  <span>Occupies {b.slotKeys?.length || 1} atomic slots</span>
+                  {b.status === 'CONFIRMED' && (
+                    <span className="text-amber-600 font-medium">
+                      Check-in Deadline: {new Date(b.checkInDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center space-x-2.5 shrink-0">
+                {b.status === 'CONFIRMED' && (
+                  <button
+                    onClick={() => handleCheckIn(b.id)}
+                    disabled={actionLoading === b.id}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-colors flex items-center space-x-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>{actionLoading === b.id ? 'Checking In...' : 'Check In'}</span>
+                  </button>
+                )}
+
+                {b.status === 'CONFIRMED' && (
+                  <button
+                    onClick={() => handleCancel(b.id)}
+                    disabled={actionLoading === b.id}
+                    className="px-3.5 py-2 rounded-xl border border-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-slate-700 text-xs font-medium transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+
+                {b.status === 'CHECKED_IN' && (
+                  <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
+                    Checked In at {new Date(b.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
