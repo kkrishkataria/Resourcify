@@ -1,6 +1,6 @@
 import { resourceRepository } from '../repositories/resourceRepository.js';
 import { slotLockRepository } from '../repositories/slotLockRepository.js';
-import { getAllDaySlots, createSlotLockKey, isWithinOperatingHours } from '../utils/timeSlots.js';
+import { getAllDaySlots, createSlotLockKey, isWithinOperatingHours, isSlotInPast } from '../utils/timeSlots.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class ResourceService {
@@ -63,15 +63,29 @@ export class ResourceService {
 
     const slotDetails = daySlots.map((timeSlot) => {
       const isOccupied = lockedSlotTimes.has(timeSlot);
+      const isPassed = isSlotInPast(date, timeSlot);
+
+      let status = 'AVAILABLE';
+      if (resource.status !== 'ACTIVE') {
+        status = 'MAINTENANCE';
+      } else if (isOccupied) {
+        status = 'BOOKED';
+      } else if (isPassed) {
+        status = 'PASSED';
+      }
+
       return {
         timeSlot,
-        available: !isOccupied && resource.status === 'ACTIVE',
-        status: resource.status !== 'ACTIVE' ? 'MAINTENANCE' : isOccupied ? 'BOOKED' : 'AVAILABLE',
+        available: !isOccupied && !isPassed && resource.status === 'ACTIVE',
+        isPassed,
+        status,
       };
     });
 
     const totalSlots = slotDetails.length;
     const availableSlots = slotDetails.filter((s) => s.available).length;
+    const passedSlots = slotDetails.filter((s) => s.isPassed).length;
+    const bookedSlots = slotDetails.filter((s) => s.status === 'BOOKED').length;
 
     return {
       resource,
@@ -79,8 +93,9 @@ export class ResourceService {
       operatingHours: resource.operatingHours,
       totalSlots,
       availableSlots,
-      bookedSlots: totalSlots - availableSlots,
-      utilizationRate: totalSlots > 0 ? Math.round(((totalSlots - availableSlots) / totalSlots) * 100) : 0,
+      bookedSlots,
+      passedSlots,
+      utilizationRate: totalSlots > 0 ? Math.round(((bookedSlots) / totalSlots) * 100) : 0,
       slots: slotDetails,
     };
   }

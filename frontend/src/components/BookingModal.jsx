@@ -35,25 +35,53 @@ export default function BookingModal({
     '20:00', '20:30', '21:00', '21:30', '22:00',
   ];
 
+  // Helper: check if a time on a date has already passed
+  const getIsTimeInPast = (d, t) => {
+    if (!d || !t) return false;
+    const [year, month, day] = d.split('-').map(Number);
+    const [hours, minutes] = t.split(':').map(Number);
+    const slotDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+    return slotDateTime.getTime() <= Date.now();
+  };
+
+  const validStartOptions = timeOptions.slice(0, -1).filter((t) => !getIsTimeInPast(date, t));
+
   // Synchronize when a slot is clicked on the availability calendar
   useEffect(() => {
     if (isOpen) {
-      if (initialDate) {
-        setDate(initialDate);
+      const activeDate = initialDate || todayStr;
+      setDate(activeDate);
+
+      const isInitPast = initialStartTime ? getIsTimeInPast(activeDate, initialStartTime) : false;
+      const filtered = timeOptions.slice(0, -1).filter((t) => !getIsTimeInPast(activeDate, t));
+      const chosenStart = (!isInitPast && initialStartTime) ? initialStartTime : (filtered[0] || '09:00');
+
+      setStartTime(chosenStart);
+      const [h, m] = chosenStart.split(':').map(Number);
+      const endTotalMins = h * 60 + m + 60;
+      const endH = Math.floor(endTotalMins / 60);
+      const endM = endTotalMins % 60;
+      const formattedEnd = `${String(Math.min(22, endH)).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+      setEndTime(formattedEnd);
+
+      if (isInitPast && initialStartTime) {
+        setError(`The slot ${initialStartTime} has already passed. Please select an upcoming slot.`);
+      } else {
+        setError('');
       }
-      if (initialStartTime) {
-        setStartTime(initialStartTime);
-        // Automatically set default endTime to 60 minutes after selected slot
-        const [h, m] = initialStartTime.split(':').map(Number);
-        const endTotalMins = h * 60 + m + 60;
-        const endH = Math.floor(endTotalMins / 60);
-        const endM = endTotalMins % 60;
-        const formattedEnd = `${String(Math.min(22, endH)).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
-        setEndTime(formattedEnd);
-      }
-      setError('');
     }
   }, [isOpen, initialStartTime, initialDate]);
+
+  const handleDateChange = (newDate) => {
+    setDate(newDate);
+    // If the currently selected startTime has passed on the new date, reset it
+    if (getIsTimeInPast(newDate, startTime)) {
+      const filtered = timeOptions.slice(0, -1).filter((t) => !getIsTimeInPast(newDate, t));
+      if (filtered.length > 0) {
+        handleStartTimeChange(filtered[0]);
+      }
+    }
+  };
 
   const handleStartTimeChange = (newStart) => {
     setStartTime(newStart);
@@ -74,6 +102,12 @@ export default function BookingModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (getIsTimeInPast(date, startTime)) {
+      setError(`Cannot book a time slot in the past (${date} at ${startTime}). Please choose an upcoming time.`);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -174,7 +208,7 @@ export default function BookingModal({
               required
               min={todayStr}
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => handleDateChange(e.target.value)}
               className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
             />
           </div>
@@ -187,9 +221,13 @@ export default function BookingModal({
                 onChange={(e) => handleStartTimeChange(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800 font-semibold text-slate-900"
               >
-                {timeOptions.slice(0, -1).map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
+                {validStartOptions.length > 0 ? (
+                  validStartOptions.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))
+                ) : (
+                  <option disabled value="">No upcoming slots today</option>
+                )}
               </select>
             </div>
 

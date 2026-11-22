@@ -22,11 +22,44 @@ export default function AutoAllocatePage() {
   const navigate = useNavigate();
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const allTimeSlots = [
+    '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+    '11:00', '11:30', '12:00', '12:30', '13:00', '13:30',
+    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+    '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+    '20:00', '20:30', '21:00'
+  ];
+
+  // Helper: check if a time slot has already passed
+  const getIsTimeInPast = (d, t) => {
+    if (!d || !t) return false;
+    const [year, month, day] = d.split('-').map(Number);
+    const [hours, minutes] = t.split(':').map(Number);
+    const slotDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+    return slotDateTime.getTime() <= Date.now();
+  };
+
   const [category, setCategory] = useState('COMPUTER_LAB');
   const [capacity, setCapacity] = useState(25);
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [date, setDate] = useState(todayStr);
-  const [preferredTime, setPreferredTime] = useState('14:00');
+
+  // Compute upcoming slots
+  const availableTimeSlots = allTimeSlots.filter((t) => !getIsTimeInPast(date, t));
+  const [preferredTime, setPreferredTime] = useState(() => {
+    const initialAvailable = allTimeSlots.filter((t) => !getIsTimeInPast(todayStr, t));
+    return initialAvailable[0] || '14:00';
+  });
+
+  const handleDateChange = (newDate) => {
+    setDate(newDate);
+    if (getIsTimeInPast(newDate, preferredTime)) {
+      const remaining = allTimeSlots.filter((t) => !getIsTimeInPast(newDate, t));
+      if (remaining.length > 0) {
+        setPreferredTime(remaining[0]);
+      }
+    }
+  };
   const [selectedEquipment, setSelectedEquipment] = useState([]);
   const [purpose, setPurpose] = useState('');
 
@@ -57,6 +90,12 @@ export default function AutoAllocatePage() {
    */
   const handleFindAndCompare = async (e) => {
     e?.preventDefault();
+
+    if (getIsTimeInPast(date, preferredTime)) {
+      setError(`Cannot search or allocate for a time slot that has already passed (${date} at ${preferredTime}). Please select an upcoming time.`);
+      return;
+    }
+
     setLoading(true);
     setMode('find');
     setError('');
@@ -91,6 +130,12 @@ export default function AutoAllocatePage() {
    */
   const handleInstantAutoAllocate = async (e) => {
     e?.preventDefault();
+
+    if (getIsTimeInPast(date, preferredTime)) {
+      setError(`Cannot auto-allocate a time slot that has already passed (${date} at ${preferredTime}). Please select an upcoming time.`);
+      return;
+    }
+
     setLoading(true);
     setMode('instant');
     setError('');
@@ -234,7 +279,7 @@ export default function AutoAllocatePage() {
                 min={todayStr}
                 required
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => handleDateChange(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
               />
             </div>
@@ -245,11 +290,15 @@ export default function AutoAllocatePage() {
               <select
                 value={preferredTime}
                 onChange={(e) => setPreferredTime(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800 font-semibold text-slate-900"
               >
-                {['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'].map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
+                {availableTimeSlots.length > 0 ? (
+                  availableTimeSlots.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))
+                ) : (
+                  <option disabled value="">No upcoming slots today</option>
+                )}
               </select>
             </div>
 

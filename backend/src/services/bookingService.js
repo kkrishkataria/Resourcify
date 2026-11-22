@@ -9,6 +9,7 @@ import {
   isWithinOperatingHours,
   calculateCheckInDeadline,
   calculateSessionStartTime,
+  isSlotInPast,
 } from '../utils/timeSlots.js';
 import { config } from '../config/aws.js';
 
@@ -49,7 +50,7 @@ export class BookingService {
     return booking;
   }
 
-  async createBooking(data, user) {
+  async createBooking(data, user, options = {}) {
     const { resourceId, date, startTime, endTime, purpose, attendeesCount } = data;
 
     // 1. Time validations
@@ -63,6 +64,14 @@ export class BookingService {
     if (durationMin <= 0) {
       const err = new Error('End time must be after start time');
       err.statusCode = 400;
+      throw err;
+    }
+
+    // 1b. Disallow booking time slots that have already passed
+    if (!options.allowPast && !data.skipPastValidation && isSlotInPast(date, startTime)) {
+      const err = new Error(`Cannot book a time slot in the past (${date} at ${startTime}). Please select an upcoming slot.`);
+      err.statusCode = 400;
+      err.errorCode = 'PAST_TIME_SLOT';
       throw err;
     }
 

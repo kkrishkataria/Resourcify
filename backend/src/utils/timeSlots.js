@@ -93,3 +93,13 @@ export function calculateCheckInDeadline(date, startTime, gracePeriodMinutes = 1
 export function getAllDaySlots(start = '08:00', end = '22:00') {
   return generateTimeSlots(start, end);
 }
+
+/**
+ * Checks whether a given date and timeSlot (HH:MM) is already in the past.
+ */
+export function isSlotInPast(date, timeSlot) {
+  const [year, month, day] = date.split('-').map(Number);
+  const [hours, minutes] = timeSlot.split(':').map(Number);
+  const slotDateTime = new Date(year, month - 1, day, hours, minutes, 0);
+  return slotDateTime.getTime() <= Date.now();
+}

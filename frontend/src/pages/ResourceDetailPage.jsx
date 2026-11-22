@@ -186,7 +186,7 @@ export default function ResourceDetailPage() {
         </div>
 
         {/* Legend */}
-        <div className="flex items-center space-x-4 text-xs font-medium pt-1">
+        <div className="flex flex-wrap items-center gap-4 text-xs font-medium pt-1">
           <div className="flex items-center space-x-1.5">
             <span className="w-3 h-3 rounded-xs bg-emerald-500"></span>
             <span className="text-slate-600">Available ({availability?.availableSlots || 0})</span>
@@ -194,6 +194,10 @@ export default function ResourceDetailPage() {
           <div className="flex items-center space-x-1.5">
             <span className="w-3 h-3 rounded-xs bg-slate-300"></span>
             <span className="text-slate-600">Occupied ({availability?.bookedSlots || 0})</span>
+          </div>
+          <div className="flex items-center space-x-1.5">
+            <span className="w-3 h-3 rounded-xs bg-slate-200 border border-slate-300"></span>
+            <span className="text-slate-400">Passed ({availability?.passedSlots || 0})</span>
           </div>
           <div className="flex items-center space-x-1.5">
             <span className="w-3 h-3 rounded-xs bg-amber-300"></span>
@@ -205,20 +209,24 @@ export default function ResourceDetailPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2.5 pt-2">
           {availability?.slots?.map((slot) => {
             const isAvail = slot.available;
+            const isPassed = slot.isPassed || slot.status === 'PASSED';
             return (
               <button
                 key={slot.timeSlot}
                 disabled={!isAvail}
                 onClick={() => handleSlotClick(slot)}
+                title={isPassed ? `${slot.timeSlot} has already passed` : isAvail ? `Click to reserve ${slot.timeSlot}` : undefined}
                 className={`p-3 rounded-xl border text-center transition-all ${
                   isAvail
                     ? 'border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 hover:border-emerald-300 text-emerald-900 cursor-pointer shadow-2xs'
+                    : isPassed
+                    ? 'border-slate-200 bg-slate-100/60 text-slate-400 cursor-not-allowed opacity-50'
                     : slot.status === 'MAINTENANCE'
                     ? 'border-amber-200 bg-amber-50 text-amber-800 cursor-not-allowed opacity-60'
                     : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
                 }`}
               >
-                <span className="block text-xs font-bold">{slot.timeSlot}</span>
+                <span className={`block text-xs font-bold ${isPassed ? 'line-through text-slate-400' : ''}`}>{slot.timeSlot}</span>
                 <span className="block text-[10px] mt-0.5 font-medium uppercase tracking-wider">
                   {slot.status}
                 </span>

@@ -270,6 +270,7 @@ export async function seedDatabase() {
         endTime: '11:30',
         purpose: 'Deep Learning & Natural Language Processing Lab Practical',
         attendeesCount: 36,
+        skipPastValidation: true,
       },
       users[2]
     );
@@ -283,6 +284,7 @@ export async function seedDatabase() {
         endTime: '15:30',
         purpose: 'Capstone Project Sprint: Distributed Resource Booking on AWS',
         attendeesCount: 5,
+        skipPastValidation: true,
       },
       users[0]
     );
@@ -296,6 +298,7 @@ export async function seedDatabase() {
         endTime: '18:30',
         purpose: 'Inter-Hostel Badminton League Practice',
         attendeesCount: 4,
+        skipPastValidation: true,
       },
       users[1]
     );

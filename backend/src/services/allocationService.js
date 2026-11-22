@@ -8,6 +8,7 @@ import {
   timeToMinutes,
   isWithinOperatingHours,
   isValid30MinBoundary,
+  isSlotInPast,
 } from '../utils/timeSlots.js';
 
 export class AllocationService {
@@ -78,6 +79,13 @@ export class AllocationService {
       equipmentRequirements = [],
     } = request;
 
+    if (isSlotInPast(date, preferredTime)) {
+      const err = new Error(`Cannot search or allocate for a time slot that has already passed (${date} at ${preferredTime}). Please choose an upcoming time.`);
+      err.statusCode = 400;
+      err.errorCode = 'PAST_TIME_SLOT';
+      throw err;
+    }
+
     const duration = Number(durationMinutes) || 60;
     const startMin = timeToMinutes(preferredTime);
     const endMin = startMin + duration;
@@ -138,6 +146,13 @@ export class AllocationService {
     if (!isValid30MinBoundary(preferredTime)) {
       const err = new Error('Preferred time must be on a 30-minute boundary (e.g. 10:00, 10:30)');
       err.statusCode = 400;
+      throw err;
+    }
+
+    if (isSlotInPast(date, preferredTime)) {
+      const err = new Error(`Cannot auto-allocate a time slot that has already passed (${date} at ${preferredTime}). Please choose an upcoming time.`);
+      err.statusCode = 400;
+      err.errorCode = 'PAST_TIME_SLOT';
       throw err;
     }
 

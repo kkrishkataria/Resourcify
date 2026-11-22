@@ -187,4 +187,35 @@ describe('Resourcify (Thapar TIET) REST API End-to-End Integration Tests', () =>
     expect(res.status).toBe(403);
     expect(res.body.success).toBe(false);
   });
+
+  it('POST /api/bookings - rejects booking attempts for past time slots', async () => {
+    const res = await request(app)
+      .post('/api/bookings')
+      .set('x-user-id', 'tiet-std-01')
+      .set('x-user-role', 'STUDENT')
+      .send({
+        resourceId: 'res-tiet-lab-01',
+        date: '2020-01-01',
+        startTime: '09:00',
+        endTime: '10:00',
+        purpose: 'Attempted past booking',
+        attendeesCount: 20,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.errorCode).toBe('PAST_TIME_SLOT');
+  });
+
+  it('GET /api/availability - marks past time slots with status PASSED', async () => {
+    const res = await request(app)
+      .get('/api/availability?resourceId=res-tiet-lab-01&date=2020-01-01')
+      .set('x-user-id', 'tiet-std-01')
+      .set('x-user-role', 'STUDENT');
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.slots[0].status).toBe('PASSED');
+    expect(res.body.data.slots[0].available).toBe(false);
+    expect(res.body.data.passedSlots).toBeGreaterThan(0);
+  });
 });
