@@ -33,6 +33,47 @@ describe('Resourcify (Thapar TIET) REST API End-to-End Integration Tests', () =>
     expect(res.body.data.user.role).toBe('STUDENT');
   });
 
+  it('POST /api/auth/login - successfully authenticates using student Roll Number (102203456)', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        identifier: '102203456',
+        password: 'Thapar@2026',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user.rollNumber).toBe('102203456');
+    expect(res.body.data.user.role).toBe('STUDENT');
+  });
+
+  it('POST /api/auth/login - successfully authenticates Professor using Employee ID (TIET-FAC-1042)', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        identifier: 'TIET-FAC-1042',
+        password: 'Thapar@2026',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user.name).toBe('Dr. Rajesh K. Bawa');
+    expect(res.body.data.user.role).toBe('FACULTY');
+  });
+
+  it('POST /api/auth/login - successfully authenticates Admin using Staff ID (TIET-EST-001)', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        identifier: 'TIET-EST-001',
+        password: 'Thapar@2026',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.user.role).toBe('ADMIN');
+  });
+
   it('POST /api/auth/register - successfully registers a new Thapar student', async () => {
     const res = await request(app)
       .post('/api/auth/register')

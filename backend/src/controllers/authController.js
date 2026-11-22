@@ -34,6 +34,18 @@ export class AuthController {
         });
       }
 
+      // Check if rollNumber / employeeId is already taken
+      if (rollNumber) {
+        const cleanRoll = rollNumber.trim().toLowerCase();
+        const existingId = await userRepository.getByIdentifier(cleanRoll);
+        if (existingId) {
+          return res.status(400).json({
+            success: false,
+            error: `An account with ID '${rollNumber}' already exists. Please sign in.`,
+          });
+        }
+      }
+
       const userId = `tiet-${uuidv4().slice(0, 8)}`;
       const targetRole = (role || 'STUDENT').toUpperCase();
 
@@ -44,7 +56,7 @@ export class AuthController {
         passwordHash: hashPassword(password),
         role: targetRole,
         department: department || 'Computer Science & Engineering (CSED)',
-        rollNumber: rollNumber || '',
+        rollNumber: rollNumber ? rollNumber.trim() : '',
         createdAt: new Date().toISOString(),
       };
 
@@ -70,26 +82,26 @@ export class AuthController {
   }
 
   /**
-   * Real credential-based login verifying email and hashed password.
+   * Real credential-based login verifying email or rollNumber / employeeId and hashed password.
    */
   async login(req, res, next) {
     try {
-      const { email, password } = req.body;
+      const { email, identifier, password } = req.body;
+      const loginId = (identifier || email || '').trim();
 
-      if (!email || !password) {
+      if (!loginId || !password) {
         return res.status(400).json({
           success: false,
-          error: 'Email and password are required',
+          error: 'Email or Roll No / Employee ID and password are required',
         });
       }
 
-      const normalizedEmail = email.toLowerCase().trim();
-      const user = await userRepository.getByEmail(normalizedEmail);
+      const user = await userRepository.getByIdentifier(loginId);
 
       if (!user) {
         return res.status(401).json({
           success: false,
-          error: 'Invalid credentials. User not found with this email.',
+          error: `Invalid credentials. No Thapar account found for '${loginId}'.`,
         });
       }
 

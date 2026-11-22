@@ -18,6 +18,20 @@ export class UserRepository {
     return all.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
   }
 
+  async getByIdentifier(identifier) {
+    if (!identifier) return null;
+    const clean = identifier.trim().toLowerCase();
+    const all = await this.db.scan(this.tableName);
+    return (
+      all.find(
+        (u) =>
+          (u.email && u.email.toLowerCase() === clean) ||
+          (u.rollNumber && u.rollNumber.toLowerCase() === clean) ||
+          (u.id && u.id.toLowerCase() === clean)
+      ) || null
+    );
+  }
+
   async getAll() {
     return this.db.scan(this.tableName);
   }

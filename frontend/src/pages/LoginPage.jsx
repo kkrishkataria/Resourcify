@@ -150,27 +150,36 @@ export default function LoginPage() {
           </div>
 
           {/* Quick Demo Credentials Assistant */}
-          <div className="mb-6 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-              Default Thapar Accounts (Click to Auto-fill)
-            </p>
-            <div className="grid grid-cols-3 gap-2">
+          <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                Official Thapar Accounts (Click to Auto-fill)
+              </p>
+              <span className="text-[10px] font-semibold text-thapar-800 bg-thapar-100 px-2 py-0.5 rounded border border-thapar-200">
+                Login via Email or ID
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {THAPAR_DEMO_ACCOUNTS.map((acc) => (
                 <button
                   key={acc.role}
                   type="button"
                   onClick={() => fillQuickCredentials(acc)}
-                  className="p-2 rounded-lg bg-white border border-slate-200 hover:border-thapar-800 hover:bg-thapar-50/50 text-left transition-all group"
+                  className="p-3 rounded-xl bg-white border border-slate-200 hover:border-thapar-800 hover:bg-thapar-50/50 text-left transition-all group shadow-2xs cursor-pointer"
                 >
-                  <span className="block text-[11px] font-bold text-slate-800 group-hover:text-thapar-800">
-                    {acc.role === 'ADMIN' ? 'Admin' : acc.role === 'FACULTY' ? 'Faculty' : 'Student'}
-                  </span>
-                  <span className="block text-[9px] text-slate-400 truncate">{acc.email.split('@')[0]}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="block text-xs font-bold text-slate-900 group-hover:text-thapar-800">
+                      {acc.roleLabel || acc.role}
+                    </span>
+                  </div>
+                  <span className="block text-[11px] font-semibold text-slate-700 mt-1">{acc.name}</span>
+                  <span className="block text-[10px] text-slate-500 font-mono mt-0.5 truncate">{acc.badge || acc.rollNumber}</span>
+                  <span className="block text-[9px] text-thapar-800 font-mono truncate">{acc.email}</span>
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-slate-400 mt-2 text-center">
-              Default password for all seed accounts: <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-700">Thapar@2026</code>
+            <p className="text-[10px] text-slate-500 mt-2.5 text-center">
+              Universal default password: <code className="bg-slate-200 px-1.5 py-0.5 rounded font-mono text-slate-800 font-bold">Thapar@2026</code>
             </p>
           </div>
 
@@ -190,22 +199,27 @@ export default function LoginPage() {
           {activeTab === 'login' ? (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Thapar Email Address</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Thapar Email Address OR Roll No / Employee ID
+                </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                   <input
-                    type="email"
+                    type="text"
                     required
-                    placeholder="student@thapar.edu"
+                    placeholder="e.g. 102203456 or asharma_be22@thapar.edu"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800 font-medium"
                   />
                 </div>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  You can log in using either your official Thapar email, student roll number, or faculty/staff ID.
+                </span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
                 <div className="relative">
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                   <input
@@ -219,7 +233,7 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -229,9 +243,10 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-sm shadow-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-thapar-800/50 flex items-center justify-center space-x-2"
+                style={{ backgroundColor: '#8B1E2D' }}
+                className="w-full py-2.5 px-4 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-sm shadow-md transition-all focus:outline-hidden focus:ring-2 focus:ring-thapar-800/50 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
               >
-                <span>{loading ? 'Authenticating...' : 'Sign In to Resourcify'}</span>
+                <span>{loading ? 'Authenticating TIET Account...' : 'Sign In to Resourcify'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -254,13 +269,25 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Thapar Email (@thapar.edu)</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  {regRole === 'STUDENT'
+                    ? 'Student Webmail (@thapar.edu)'
+                    : regRole === 'FACULTY'
+                    ? 'Official Faculty Email (@thapar.edu)'
+                    : 'Administration Email (@thapar.edu)'}
+                </label>
                 <div className="relative">
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                   <input
                     type="email"
                     required
-                    placeholder="yourname@thapar.edu"
+                    placeholder={
+                      regRole === 'STUDENT'
+                        ? 'asharma_be22@thapar.edu'
+                        : regRole === 'FACULTY'
+                        ? 'rbawa@thapar.edu'
+                        : 'estate.admin@thapar.edu'
+                    }
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
@@ -277,19 +304,32 @@ export default function LoginPage() {
                     className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
                   >
                     <option value="STUDENT">Student</option>
-                    <option value="FACULTY">Faculty Member</option>
+                    <option value="FACULTY">Faculty Member / Professor</option>
                     <option value="ADMIN">Campus Administrator</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Roll / Employee ID</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {regRole === 'STUDENT'
+                      ? 'Student Roll Number *'
+                      : regRole === 'FACULTY'
+                      ? 'Faculty Employee ID *'
+                      : 'Admin Staff ID *'}
+                  </label>
                   <input
                     type="text"
-                    placeholder="e.g. 102103456"
+                    required
+                    placeholder={
+                      regRole === 'STUDENT'
+                        ? 'e.g. 102203456'
+                        : regRole === 'FACULTY'
+                        ? 'e.g. TIET-FAC-1042'
+                        : 'e.g. TIET-EST-001'
+                    }
                     value={regRollNumber}
                     onChange={(e) => setRegRollNumber(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800 font-mono"
                   />
                 </div>
               </div>
@@ -341,9 +381,10 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-sm shadow-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-thapar-800/50"
+                style={{ backgroundColor: '#8B1E2D' }}
+                className="w-full py-2.5 px-4 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-sm shadow-md transition-all focus:outline-hidden focus:ring-2 focus:ring-thapar-800/50 cursor-pointer disabled:opacity-50"
               >
-                {loading ? 'Registering...' : 'Complete TIET Registration'}
+                {loading ? 'Registering with TIET...' : 'Complete TIET Registration'}
               </button>
             </form>
           )}

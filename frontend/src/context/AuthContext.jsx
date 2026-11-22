@@ -6,27 +6,33 @@ const AuthContext = createContext(null);
 export const THAPAR_DEMO_ACCOUNTS = [
   {
     role: 'STUDENT',
+    roleLabel: 'Student (B.Tech)',
     name: 'Aarav Sharma',
-    email: 'student@thapar.edu',
+    email: 'asharma_be22@thapar.edu',
+    rollNumber: '102203456',
     password: 'Thapar@2026',
     department: 'Computer Science & Engineering (CSED)',
-    rollNumber: '102103456',
+    badge: 'Roll No: 102203456',
   },
   {
     role: 'FACULTY',
+    roleLabel: 'Professor & HOD',
     name: 'Dr. Rajesh K. Bawa',
-    email: 'faculty@thapar.edu',
+    email: 'rbawa@thapar.edu',
+    rollNumber: 'TIET-FAC-1042',
     password: 'Thapar@2026',
     department: 'Computer Science & Engineering (CSED)',
-    rollNumber: 'FAC-CSED-402',
+    badge: 'Emp ID: TIET-FAC-1042',
   },
   {
     role: 'ADMIN',
-    name: 'TIET Central Facilities & Estate Office',
-    email: 'admin@thapar.edu',
+    roleLabel: 'Chief Estate Officer',
+    name: 'Er. Vikramaditya Singh',
+    email: 'estate.admin@thapar.edu',
+    rollNumber: 'TIET-EST-001',
     password: 'Thapar@2026',
-    department: 'Estate & Administration Directorate',
-    rollNumber: 'ADM-EST-01',
+    department: 'Central Estate & Administration Directorate',
+    badge: 'Staff ID: TIET-EST-001',
   },
 ];
 
@@ -57,12 +63,12 @@ export function AuthProvider({ children }) {
   }, [token]);
 
   /**
-   * Real login with email and password
+   * Real login with email or roll number / employee ID and password
    */
-  const login = async (email, password) => {
+  const login = async (identifier, password) => {
     setLoading(true);
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', { identifier, email: identifier, password });
       if (res.data?.success && res.data.data) {
         setUser(res.data.data.user);
         setToken(res.data.data.token);
