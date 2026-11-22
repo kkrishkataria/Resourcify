@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from './Modal.jsx';
 import api from '../services/api.js';
 import { Clock, Calendar, Users, AlertCircle } from 'lucide-react';
@@ -35,6 +35,43 @@ export default function BookingModal({
     '20:00', '20:30', '21:00', '21:30', '22:00',
   ];
 
+  // Synchronize when a slot is clicked on the availability calendar
+  useEffect(() => {
+    if (isOpen) {
+      if (initialDate) {
+        setDate(initialDate);
+      }
+      if (initialStartTime) {
+        setStartTime(initialStartTime);
+        // Automatically set default endTime to 60 minutes after selected slot
+        const [h, m] = initialStartTime.split(':').map(Number);
+        const endTotalMins = h * 60 + m + 60;
+        const endH = Math.floor(endTotalMins / 60);
+        const endM = endTotalMins % 60;
+        const formattedEnd = `${String(Math.min(22, endH)).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+        setEndTime(formattedEnd);
+      }
+      setError('');
+    }
+  }, [isOpen, initialStartTime, initialDate]);
+
+  const handleStartTimeChange = (newStart) => {
+    setStartTime(newStart);
+    // If current end time is equal or earlier than start, advance it automatically
+    const [startH, startM] = newStart.split(':').map(Number);
+    const startMins = startH * 60 + startM;
+
+    const [endH, endM] = endTime.split(':').map(Number);
+    const endMins = endH * 60 + endM;
+
+    if (endMins <= startMins) {
+      const nextMins = Math.min(22 * 60, startMins + 60);
+      const nextH = Math.floor(nextMins / 60);
+      const nextM = nextMins % 60;
+      setEndTime(`${String(nextH).padStart(2, '0')}:${String(nextM).padStart(2, '0')}`);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -46,7 +83,7 @@ export default function BookingModal({
         date,
         startTime,
         endTime,
-        purpose: purpose || 'Academic study session',
+        purpose: purpose || 'Academic study session at TIET',
         attendeesCount: Number(attendeesCount) || 1,
       });
 
@@ -93,7 +130,7 @@ export default function BookingModal({
         date: alt.date,
         startTime: alt.startTime,
         endTime: alt.endTime,
-        purpose: purpose || 'Alternative Reservation',
+        purpose: purpose || 'Alternative Reservation at TIET',
         attendeesCount: Number(attendeesCount) || 1,
       });
       if (res.data?.success) {
@@ -121,9 +158,9 @@ export default function BookingModal({
                   <button
                     type="button"
                     onClick={() => setShowAlternatives(true)}
-                    className="mt-1 font-bold text-rose-900 underline text-xs"
+                    className="mt-1 font-bold text-rose-900 underline text-xs block"
                   >
-                    View {alternatives.length} Smart Alternatives & Available Slots
+                    View {alternatives.length} Smart Alternatives & Nearby Slots
                   </button>
                 )}
               </div>
@@ -138,7 +175,7 @@ export default function BookingModal({
               min={todayStr}
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
             />
           </div>
 
@@ -147,8 +184,8 @@ export default function BookingModal({
               <label className="block text-xs font-semibold text-slate-700 mb-1">Start Time (30m)</label>
               <select
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                onChange={(e) => handleStartTimeChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800 font-semibold text-slate-900"
               >
                 {timeOptions.slice(0, -1).map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -161,7 +198,7 @@ export default function BookingModal({
               <select
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800 font-semibold text-slate-900"
               >
                 {timeOptions.slice(1).map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -179,15 +216,15 @@ export default function BookingModal({
                 max={resource?.capacity || 100}
                 value={attendeesCount}
                 onChange={(e) => setAttendeesCount(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
               />
               <span className="text-[10px] text-slate-400 mt-0.5 block">Max capacity: {resource?.capacity} seats</span>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Check-in Rule</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Check-in Flexibility</label>
               <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600">
-                15 min grace period. Unclaimed slots auto-release as No-Show.
+                Advance check-in allowed anytime before session starts or up to 15m after.
               </div>
             </div>
           </div>
@@ -197,10 +234,10 @@ export default function BookingModal({
             <textarea
               rows="2"
               required
-              placeholder="e.g. CS401 Machine Learning project review, study group..."
+              placeholder="e.g. Capstone project sprint, Faculty committee, Study group..."
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
-              className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+              className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
             />
           </div>
 
@@ -215,7 +252,7 @@ export default function BookingModal({
             <button
               type="submit"
               disabled={loading}
-              className="px-5 py-2 rounded-xl bg-campus-800 hover:bg-campus-900 text-white text-xs font-semibold shadow-xs transition-colors"
+              className="px-5 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white text-xs font-semibold shadow-xs transition-colors"
             >
               {loading ? 'Acquiring DynamoDB Slot Locks...' : 'Confirm Atomic Reservation'}
             </button>
