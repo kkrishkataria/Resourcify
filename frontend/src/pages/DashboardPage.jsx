@@ -16,6 +16,7 @@ import {
   Building,
   ArrowRight,
   GraduationCap,
+  LogOut,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -58,6 +59,25 @@ export default function DashboardPage() {
       }
     } catch (err) {
       setMessage(`Check-in failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCheckOut = async (bookingId) => {
+    if (!window.confirm('Check out of this venue now? Any remaining slots will be released immediately.')) {
+      return;
+    }
+    setActionLoading(bookingId);
+    setMessage('');
+    try {
+      const res = await api.post(`/bookings/${bookingId}/checkout`);
+      if (res.data?.success) {
+        setMessage('Checked out successfully! The facility has been freed for other students.');
+        fetchUserBookings();
+      }
+    } catch (err) {
+      setMessage(`Check-out failed: ${err.response?.data?.error || err.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -219,17 +239,29 @@ export default function DashboardPage() {
                     <button
                       onClick={() => handleCheckIn(booking.id)}
                       disabled={actionLoading === booking.id}
-                      className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1.5"
+                      className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>{actionLoading === booking.id ? 'Verifying...' : 'Check In'}</span>
                     </button>
                   )}
 
+                  {booking.status === 'CHECKED_IN' && (
+                    <button
+                      onClick={() => handleCheckOut(booking.id)}
+                      disabled={actionLoading === booking.id}
+                      style={{ backgroundColor: '#8B1E2D' }}
+                      className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white text-xs font-bold shadow-md transition-all flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-white" />
+                      <span>{actionLoading === booking.id ? 'Checking Out...' : 'Check Out Now'}</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => handleCancel(booking.id)}
                     disabled={actionLoading === booking.id}
-                    className="px-3.5 py-2 rounded-lg border border-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-slate-700 text-xs font-medium transition-colors"
+                    className="px-3.5 py-2 rounded-lg border border-slate-300 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-300 text-slate-700 text-xs font-medium transition-colors cursor-pointer"
                   >
                     Cancel
                   </button>

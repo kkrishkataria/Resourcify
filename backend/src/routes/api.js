@@ -33,6 +33,7 @@ router.post('/bookings', authenticate, (req, res, next) => bookingController.cre
 router.get('/bookings/:id', authenticate, (req, res, next) => bookingController.getById(req, res, next));
 router.delete('/bookings/:id', authenticate, (req, res, next) => bookingController.cancel(req, res, next));
 router.post('/bookings/:id/checkin', authenticate, (req, res, next) => bookingController.checkIn(req, res, next));
+router.post('/bookings/:id/checkout', authenticate, (req, res, next) => bookingController.checkOut(req, res, next));
 
 // Intelligent Auto-Allocation
 router.post('/allocate', authenticate, (req, res, next) => allocationController.allocate(req, res, next));

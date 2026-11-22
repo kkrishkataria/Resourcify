@@ -54,6 +54,36 @@ describe('Check-In and Auto-Release System', () => {
     expect(result.booking.checkedInAt).toBeDefined();
   });
 
+  it('should successfully check out a checked-in booking, mark it COMPLETED, and release slot locks', async () => {
+    const booking = await bookingService.createBooking(
+      {
+        resourceId: 'res-checkin-test',
+        date: '2026-11-29',
+        startTime: '16:00',
+        endTime: '17:00',
+        purpose: 'Revision session before checkout',
+      },
+      user
+    );
+
+    // Check in first
+    await checkInService.checkIn(booking.id, user);
+
+    // Verify slots are occupied
+    let locks = await slotLockRepository.getLocksForResourceAndDate('res-checkin-test', '2026-11-29');
+    expect(locks.length).toBeGreaterThan(0);
+
+    // Check out
+    const outResult = await checkInService.checkOut(booking.id, user);
+    expect(outResult.success).toBe(true);
+    expect(outResult.booking.status).toBe('COMPLETED');
+    expect(outResult.booking.checkedOutAt).toBeDefined();
+
+    // Verify slot locks were released in database
+    locks = await slotLockRepository.getLocksForResourceAndDate('res-checkin-test', '2026-11-29');
+    expect(locks).toHaveLength(0);
+  });
+
   it('should auto-release slot locks when scheduled process runs for expired bookings', async () => {
     const booking = await bookingService.createBooking(
       {

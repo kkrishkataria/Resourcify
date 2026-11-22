@@ -66,6 +66,55 @@ export class CheckInService {
   }
 
   /**
+   * Checks out a user from their active checked-in booking.
+   * Marks the booking as COMPLETED and atomically releases all associated slot locks
+   * so remaining time slots become immediately available for other campus members.
+   */
+  async checkOut(bookingId, user) {
+    const booking = await bookingRepository.getById(bookingId);
+    if (!booking) {
+      const err = new Error('Booking not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const userRole = (user.role || '').toUpperCase();
+    if (userRole !== 'ADMIN' && booking.userId !== user.id) {
+      const err = new Error('Access denied: You can only check out of your own booking');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (booking.status === 'COMPLETED') {
+      return {
+        alreadyCheckedOut: true,
+        booking,
+        message: 'Booking is already completed and checked out.',
+      };
+    }
+
+    if (booking.status !== 'CHECKED_IN') {
+      const err = new Error(`Cannot check out for a booking with status '${booking.status}'. Only active checked-in bookings can be checked out.`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const now = new Date();
+    // Atomically release DynamoDB slot locks and update status to COMPLETED
+    const completedBooking = await conflictService.releaseBookingSlotLocks(booking, 'COMPLETED', {
+      checkedOutAt: now.toISOString(),
+    });
+
+    notificationService.notifyBookingEvent('BOOKING_CHECKED_OUT', completedBooking).catch(() => {});
+
+    return {
+      success: true,
+      booking: completedBooking,
+      message: `Checked out successfully from ${booking.resourceName}! Remaining slots are now available for other students.`,
+    };
+  }
+
+  /**
    * Background scheduled auto-release engine.
    * Triggered by Amazon EventBridge or scheduled cron.
    * Finds all CONFIRMED bookings whose checkInDeadline has passed,

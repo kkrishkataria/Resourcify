@@ -59,6 +59,15 @@ export class BookingController {
       next(err);
     }
   }
+
+  async checkOut(req, res, next) {
+    try {
+      const result = await checkInService.checkOut(req.params.id, req.user);
+      res.json({ success: true, data: result.booking, message: result.message });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
 
 export const bookingController = new BookingController();

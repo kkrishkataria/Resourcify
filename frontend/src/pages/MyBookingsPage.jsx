@@ -14,6 +14,7 @@ import {
   XCircle,
   AlertTriangle,
   QrCode,
+  LogOut,
 } from 'lucide-react';
 
 export default function MyBookingsPage() {
@@ -52,6 +53,25 @@ export default function MyBookingsPage() {
       }
     } catch (err) {
       setMessage(`Check-in failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCheckOut = async (bookingId) => {
+    if (!window.confirm('Check out and complete your session now? Any remaining time slots will immediately be released for other students.')) {
+      return;
+    }
+    setActionLoading(bookingId);
+    setMessage('');
+    try {
+      const res = await api.post(`/bookings/${bookingId}/checkout`);
+      if (res.data?.success) {
+        setMessage('Checked out successfully! Your session is complete and remaining slots have been released.');
+        fetchBookings();
+      }
+    } catch (err) {
+      setMessage(`Check-out failed: ${err.response?.data?.error || err.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -197,8 +217,26 @@ export default function MyBookingsPage() {
                 )}
 
                 {b.status === 'CHECKED_IN' && (
-                  <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-                    Checked In at {new Date(b.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
+                      Checked In at {new Date(b.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                    <button
+                      onClick={() => handleCheckOut(b.id)}
+                      disabled={actionLoading === b.id}
+                      style={{ backgroundColor: '#8B1E2D' }}
+                      className="px-4 py-2 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-white" />
+                      <span>{actionLoading === b.id ? 'Checking Out...' : 'Check Out Now'}</span>
+                    </button>
+                  </div>
+                )}
+
+                {b.status === 'COMPLETED' && (
+                  <div className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center space-x-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Completed & Checked Out</span>
                   </div>
                 )}
               </div>
