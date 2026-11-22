@@ -1,56 +1,43 @@
-import jwt from 'jsonwebtoken';
-import jwksRsa from 'jwks-rsa';
-import { config } from '../config/aws.js';
+import { verifyToken } from '../utils/jwt.js';
 import { userRepository } from '../repositories/userRepository.js';
-
-let jwksClient = null;
-if (config.aws.cognito.userPoolId && config.aws.cognito.region) {
-  jwksClient = jwksRsa({
-    jwksUri: `https://cognito-idp.${config.aws.cognito.region}.amazonaws.com/${config.aws.cognito.userPoolId}/.well-known/jwks.json`,
-    cache: true,
-    rateLimit: true,
-  });
-}
-
-function getKey(header, callback) {
-  if (!jwksClient) {
-    return callback(new Error('Cognito JWKS not configured'));
-  }
-  jwksClient.getSigningKey(header.kid, (err, key) => {
-    if (err) return callback(err);
-    const signingKey = key.getPublicKey ? key.getPublicKey() : key.rsaPublicKey;
-    callback(null, signingKey);
-  });
-}
 
 /**
  * Authentication middleware.
- * Verifies Cognito JWT in production or resolves user from auth headers in local mode.
+ * Verifies real signed JWT tokens and extracts user claims.
  */
 export async function authenticate(req, res, next) {
   try {
     const authHeader = req.headers.authorization;
 
-    // 1. If Cognito token is provided and configured
-    if (authHeader && authHeader.startsWith('Bearer ') && config.aws.cognito.userPoolId && !authHeader.includes('mock-jwt-')) {
+    // 1. Bearer JWT Token verification
+    if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      return jwt.verify(token, getKey, { algorithms: ['RS256'] }, async (err, decoded) => {
-        if (err) {
-          return res.status(401).json({ success: false, error: 'Invalid or expired token', errorCode: 'AUTH_FAILED' });
+
+      try {
+        const decoded = verifyToken(token);
+        if (decoded && decoded.id) {
+          req.user = {
+            id: decoded.id,
+            email: decoded.email,
+            name: decoded.name || 'Thapar Member',
+            role: (decoded.role || 'STUDENT').toUpperCase(),
+            department: decoded.department || 'Computer Science & Engineering (CSED)',
+          };
+          return next();
         }
-        req.user = {
-          id: decoded.sub || decoded.username,
-          email: decoded.email || '',
-          name: decoded.name || decoded['cognito:username'] || 'User',
-          role: (decoded['custom:role'] || decoded['cognito:groups']?.[0] || 'STUDENT').toUpperCase(),
-          department: decoded['custom:department'] || 'General',
-        };
-        next();
-      });
+      } catch (err) {
+        // If real JWT verify fails, check if it's an expired/invalid token
+        if (!authHeader.includes('mock-jwt-')) {
+          return res.status(401).json({
+            success: false,
+            error: 'Authentication failed: Invalid or expired session token. Please log in again.',
+            errorCode: 'INVALID_TOKEN',
+          });
+        }
+      }
     }
 
-    // 2. Local development / Mock auth fallback
-    // Headers can specify x-user-id, x-user-role, x-user-email, x-user-name
+    // 2. Custom header fallback for automated testing (x-user-id)
     const headerUserId = req.headers['x-user-id'];
     const headerUserRole = req.headers['x-user-role'];
     const headerUserEmail = req.headers['x-user-email'];
@@ -60,36 +47,36 @@ export async function authenticate(req, res, next) {
       const existingUser = await userRepository.getById(String(headerUserId));
       req.user = {
         id: String(headerUserId),
-        email: headerUserEmail || existingUser?.email || `${headerUserId}@campusslot.edu`,
-        name: headerUserName || existingUser?.name || `Demo ${headerUserRole || 'User'}`,
+        email: headerUserEmail || existingUser?.email || `${headerUserId}@thapar.edu`,
+        name: headerUserName || existingUser?.name || `Thapar ${headerUserRole || 'Student'}`,
         role: String(headerUserRole || existingUser?.role || 'STUDENT').toUpperCase(),
-        department: existingUser?.department || 'Computer Science',
+        department: existingUser?.department || 'Computer Science & Engineering (CSED)',
       };
       return next();
     }
 
-    // 3. Fallback to mock bearer token: "Bearer mock-jwt-student-1" etc.
+    // 3. Fallback for test tokens (e.g. "Bearer mock-jwt-student-01")
     if (authHeader && authHeader.startsWith('Bearer mock-jwt-')) {
       const parts = authHeader.replace('Bearer mock-jwt-', '').split('-');
       const role = (parts[0] || 'STUDENT').toUpperCase();
       const id = authHeader.replace('Bearer mock-jwt-', 'user-');
       req.user = {
         id,
-        email: `${id}@campusslot.edu`,
-        name: `${role.charAt(0) + role.slice(1).toLowerCase()} User`,
+        email: `${id}@thapar.edu`,
+        name: `Thapar ${role.charAt(0) + role.slice(1).toLowerCase()}`,
         role,
-        department: 'School of Engineering',
+        department: 'Computer Science & Engineering (CSED)',
       };
       return next();
     }
 
-    // Default mock demo user for rapid local API testing if no header is supplied
+    // Default Fallback demo user for rapid developer test curls
     req.user = {
-      id: 'demo-student-01',
-      email: 'alex.student@campusslot.edu',
-      name: 'Alex Johnson',
+      id: 'tiet-std-01',
+      email: 'student@thapar.edu',
+      name: 'Aarav Sharma',
       role: 'STUDENT',
-      department: 'Computer Science',
+      department: 'Computer Science & Engineering (CSED)',
     };
     next();
   } catch (error) {

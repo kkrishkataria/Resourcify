@@ -40,10 +40,10 @@ export default function App() {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-          <p>© 2026 CampusSlot – ResourSync Intelligent Cloud Allocation System.</p>
+          <p>© 2026 Resourcify • Thapar Institute of Engineering & Technology (TIET), Patiala.</p>
           <p className="flex items-center space-x-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span>DynamoDB Atomic Concurrency Engine Active</span>
+            <span>DynamoDB Atomic Lock Concurrency Active</span>
           </p>
         </div>
       </footer>

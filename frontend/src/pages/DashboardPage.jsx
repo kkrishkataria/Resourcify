@@ -13,14 +13,13 @@ import {
   Sparkles,
   Search,
   CheckCircle2,
-  XCircle,
   Building,
   ArrowRight,
-  ShieldAlert,
+  GraduationCap,
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,8 +40,12 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
     fetchUserBookings();
-  }, [user]);
+  }, [user, isAuthenticated]);
 
   const handleCheckIn = async (bookingId) => {
     setActionLoading(bookingId);
@@ -50,7 +53,7 @@ export default function DashboardPage() {
     try {
       const res = await api.post(`/bookings/${bookingId}/checkin`);
       if (res.data?.success) {
-        setMessage('Check-in successful! Your reservation is confirmed active.');
+        setMessage('Check-in successful! Your attendance at the Thapar facility has been recorded.');
         fetchUserBookings();
       }
     } catch (err) {
@@ -61,14 +64,14 @@ export default function DashboardPage() {
   };
 
   const handleCancel = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to cancel this reservation? Its time slots will immediately be released.')) {
+    if (!window.confirm('Are you sure you want to cancel this reservation? Its 30-min slot locks will immediately be freed for other Thapar students.')) {
       return;
     }
     setActionLoading(bookingId);
     try {
       const res = await api.delete(`/bookings/${bookingId}`);
       if (res.data?.success) {
-        setMessage('Reservation cancelled and slots successfully released.');
+        setMessage('Reservation cancelled and facility slots successfully released.');
         fetchUserBookings();
       }
     } catch (err) {
@@ -84,7 +87,7 @@ export default function DashboardPage() {
   const upcomingReservations = bookings.filter((b) => b.status === 'CONFIRMED');
 
   if (loading) {
-    return <LoadingSpinner message="Loading your dashboard..." />;
+    return <LoadingSpinner message="Accessing your Thapar Resourcify dashboard..." />;
   }
 
   return (
@@ -93,16 +96,16 @@ export default function DashboardPage() {
       <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-md bg-blue-50 text-campus-800 border border-blue-100">
-              {user?.role} PORTAL
+            <span className="px-2.5 py-0.5 text-xs font-bold rounded-md bg-thapar-100 text-thapar-800 border border-thapar-200">
+              TIET {user?.role} PORTAL
             </span>
-            <span className="text-xs text-slate-400">• {user?.department}</span>
+            <span className="text-xs text-slate-500">• {user?.department}</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 mt-2 tracking-tight">
-            Welcome back, {user?.name}
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mt-2 tracking-tight">
+            Welcome, {user?.name || 'Thapar Member'}
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Reserve campus facilities, check in to current slots, and prevent double bookings with atomic cloud allocation.
+            Reserve Nava Nalanda Central Library pods, COS Labs, LP Lecture Halls, and Sports Courts with atomic conflict prevention.
           </p>
         </div>
 
@@ -110,7 +113,7 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-2.5">
           <Link
             to="/auto-allocate"
-            className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-campus-800 hover:bg-campus-900 text-white font-medium text-sm shadow-xs transition-colors"
+            className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-medium text-sm shadow-xs transition-colors"
           >
             <Sparkles className="w-4 h-4" />
             <span>Smart Auto-Allocate</span>
@@ -120,15 +123,15 @@ export default function DashboardPage() {
             className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-medium text-sm transition-colors"
           >
             <Search className="w-4 h-4" />
-            <span>Browse All Venues</span>
+            <span>Browse Thapar Venues</span>
           </Link>
         </div>
       </div>
 
       {message && (
-        <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-sm flex items-center justify-between">
+        <div className="p-4 rounded-xl bg-thapar-50 border border-thapar-200 text-thapar-900 text-sm flex items-center justify-between">
           <span>{message}</span>
-          <button onClick={() => setMessage('')} className="text-blue-500 hover:text-blue-700 text-xs font-bold">
+          <button onClick={() => setMessage('')} className="text-thapar-800 hover:text-thapar-950 text-xs font-bold">
             Dismiss
           </button>
         </div>
@@ -139,29 +142,29 @@ export default function DashboardPage() {
         <StatCard
           title="Active Reservations"
           value={activeReservations.length}
-          subtitle="Currently held slot locks"
+          subtitle="Held in DynamoDB locks"
           icon={Calendar}
           color="blue"
         />
         <StatCard
           title="Pending Check-in"
           value={upcomingReservations.length}
-          subtitle="Requires check-in within grace period"
+          subtitle="Within 15-min grace window"
           icon={Clock}
           color="amber"
         />
         <StatCard
-          title="Total Bookings"
+          title="Total Lifetime Bookings"
           value={bookings.length}
-          subtitle="Lifetime reservation count"
+          subtitle="Academic year record"
           icon={Building}
           color="emerald"
         />
         <StatCard
-          title="Campus Role Status"
+          title="TIET ID Status"
           value={user?.role}
-          subtitle="Access verified via Cognito/IAM"
-          icon={CheckCircle2}
+          subtitle={user?.email}
+          icon={GraduationCap}
           color="purple"
         />
       </div>
@@ -170,10 +173,10 @@ export default function DashboardPage() {
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Your Current & Upcoming Reservations</h2>
-            <p className="text-xs text-slate-500">Atomic DynamoDB lock holds 30-min increments</p>
+            <h2 className="text-lg font-bold text-slate-900">Your Campus Reservations</h2>
+            <p className="text-xs text-slate-500">Atomic 30-minute lock slots at Thapar Institute</p>
           </div>
-          <Link to="/my-bookings" className="text-xs font-semibold text-campus-700 hover:text-campus-900 flex items-center space-x-1">
+          <Link to="/my-bookings" className="text-xs font-semibold text-thapar-800 hover:text-thapar-950 flex items-center space-x-1">
             <span>View All</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
@@ -183,8 +186,8 @@ export default function DashboardPage() {
           <div className="p-8">
             <EmptyState
               title="No active reservations"
-              description="You do not have any active or upcoming facility bookings."
-              actionText="Book a Resource Now"
+              description="You do not have any active bookings at Thapar Institute right now."
+              actionText="Book a Facility Now"
               onAction={() => navigate('/resources')}
             />
           </div>
@@ -195,7 +198,7 @@ export default function DashboardPage() {
                 <div className="space-y-1.5">
                   <div className="flex items-center space-x-2">
                     <StatusBadge status={booking.status} />
-                    <span className="text-xs text-slate-400">ID: {booking.id.slice(0, 12)}...</span>
+                    <span className="text-xs text-slate-400">Ref: {booking.id.slice(0, 12)}...</span>
                   </div>
                   <h3 className="text-base font-bold text-slate-900">{booking.resourceName}</h3>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
@@ -219,7 +222,7 @@ export default function DashboardPage() {
                       className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center space-x-1.5"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{actionLoading === booking.id ? 'Checking In...' : 'Check In'}</span>
+                      <span>{actionLoading === booking.id ? 'Verifying...' : 'Check In'}</span>
                     </button>
                   )}
 

@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createApp } from '../src/app.js';
 import { seedDatabase } from '../src/seeds/seed.js';
 
-describe('CampusSlot REST API End-to-End Integration Tests', () => {
+describe('Resourcify (Thapar TIET) REST API End-to-End Integration Tests', () => {
   let app;
 
   beforeAll(async () => {
@@ -18,10 +18,43 @@ describe('CampusSlot REST API End-to-End Integration Tests', () => {
     expect(res.body.service).toBe('CampusSlot API');
   });
 
-  it('GET /api/resources - returns list of campus facilities', async () => {
+  it('POST /api/auth/login - successfully authenticates registered Thapar student', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'student@thapar.edu',
+        password: 'Thapar@2026',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.token).toBeDefined();
+    expect(res.body.data.user.email).toBe('student@thapar.edu');
+    expect(res.body.data.user.role).toBe('STUDENT');
+  });
+
+  it('POST /api/auth/register - successfully registers a new Thapar student', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        name: 'Simran Kaur',
+        email: 'simran.kaur@thapar.edu',
+        password: 'Password123!',
+        role: 'STUDENT',
+        department: 'Computer Science & Engineering (CSED)',
+        rollNumber: '102103789',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.token).toBeDefined();
+    expect(res.body.data.user.email).toBe('simran.kaur@thapar.edu');
+  });
+
+  it('GET /api/resources - returns list of Thapar campus facilities', async () => {
     const res = await request(app)
       .get('/api/resources')
-      .set('x-user-id', 'demo-student-01')
+      .set('x-user-id', 'tiet-std-01')
       .set('x-user-role', 'STUDENT');
 
     expect(res.status).toBe(200);
@@ -29,10 +62,10 @@ describe('CampusSlot REST API End-to-End Integration Tests', () => {
     expect(res.body.data.length).toBeGreaterThan(0);
   });
 
-  it('GET /api/availability - retrieves 30-min slot calendar for a resource', async () => {
+  it('GET /api/availability - retrieves 30-min slot calendar for a Thapar resource', async () => {
     const res = await request(app)
-      .get('/api/availability?resourceId=res-lab-01&date=2026-11-25')
-      .set('x-user-id', 'demo-student-01')
+      .get('/api/availability?resourceId=res-tiet-lab-01&date=2026-11-25')
+      .set('x-user-id', 'tiet-std-01')
       .set('x-user-role', 'STUDENT');
 
     expect(res.status).toBe(200);
@@ -44,14 +77,14 @@ describe('CampusSlot REST API End-to-End Integration Tests', () => {
   it('POST /api/bookings - successfully creates a valid reservation', async () => {
     const res = await request(app)
       .post('/api/bookings')
-      .set('x-user-id', 'demo-student-01')
+      .set('x-user-id', 'tiet-std-01')
       .set('x-user-role', 'STUDENT')
       .send({
-        resourceId: 'res-study-02',
+        resourceId: 'res-tiet-study-02',
         date: '2026-11-25',
         startTime: '16:00',
         endTime: '17:30',
-        purpose: 'Capstone Project Review',
+        purpose: 'Capstone Project Review at Central Library',
         attendeesCount: 5,
       });
 
@@ -64,7 +97,7 @@ describe('CampusSlot REST API End-to-End Integration Tests', () => {
   it('POST /api/allocate - successfully auto-allocates an optimal resource', async () => {
     const res = await request(app)
       .post('/api/allocate')
-      .set('x-user-id', 'demo-student-01')
+      .set('x-user-id', 'tiet-std-01')
       .set('x-user-role', 'STUDENT')
       .send({
         category: 'STUDY_ROOM',
@@ -72,7 +105,7 @@ describe('CampusSlot REST API End-to-End Integration Tests', () => {
         durationMinutes: 60,
         date: '2026-11-26',
         preferredTime: '10:00',
-        purpose: 'Automated study allocation',
+        purpose: 'Automated study allocation in NNCL',
       });
 
     expect(res.status).toBe(201);
@@ -83,8 +116,8 @@ describe('CampusSlot REST API End-to-End Integration Tests', () => {
 
   it('GET /api/suggestions - returns intelligent alternatives when query provided', async () => {
     const res = await request(app)
-      .get('/api/suggestions?resourceId=res-lab-01&date=2026-11-25&preferredTime=10:00&durationMinutes=60')
-      .set('x-user-id', 'demo-student-01')
+      .get('/api/suggestions?resourceId=res-tiet-lab-01&date=2026-11-25&preferredTime=10:00&durationMinutes=60')
+      .set('x-user-id', 'tiet-std-01')
       .set('x-user-role', 'STUDENT');
 
     expect(res.status).toBe(200);
@@ -95,7 +128,7 @@ describe('CampusSlot REST API End-to-End Integration Tests', () => {
   it('GET /api/admin/analytics - returns executive analytics for admin role', async () => {
     const res = await request(app)
       .get('/api/admin/analytics')
-      .set('x-user-id', 'demo-admin-01')
+      .set('x-user-id', 'tiet-adm-01')
       .set('x-user-role', 'ADMIN');
 
     expect(res.status).toBe(200);
@@ -107,7 +140,7 @@ describe('CampusSlot REST API End-to-End Integration Tests', () => {
   it('GET /api/admin/analytics - denies access for unauthorized student role', async () => {
     const res = await request(app)
       .get('/api/admin/analytics')
-      .set('x-user-id', 'demo-student-01')
+      .set('x-user-id', 'tiet-std-01')
       .set('x-user-role', 'STUDENT');
 
     expect(res.status).toBe(403);

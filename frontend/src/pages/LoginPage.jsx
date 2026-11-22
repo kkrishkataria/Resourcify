@@ -1,147 +1,352 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, DEMO_PROFILES } from '../context/AuthContext.jsx';
-import { CalendarCheck, ShieldCheck, GraduationCap, Briefcase, ArrowRight } from 'lucide-react';
+import { useAuth, THAPAR_DEMO_ACCOUNTS } from '../context/AuthContext.jsx';
+import {
+  GraduationCap,
+  Briefcase,
+  ShieldCheck,
+  Lock,
+  Mail,
+  User,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Building2,
+  CalendarCheck,
+} from 'lucide-react';
 
 export default function LoginPage() {
-  const { switchProfile, loginWithCredentials, loading } = useAuth();
+  const { login, register, loading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('STUDENT');
-  const [error, setError] = useState('');
 
-  const handleDemoSelect = (profile) => {
-    switchProfile(profile);
-    if (profile.role === 'ADMIN') {
-      navigate('/admin/analytics');
-    } else {
-      navigate('/dashboard');
-    }
+  const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
+  const [showPassword, setShowPassword] = useState(false);
+
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Register form state
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regRole, setRegRole] = useState('STUDENT');
+  const [regDepartment, setRegDepartment] = useState('Computer Science & Engineering (CSED)');
+  const [regRollNumber, setRegRollNumber] = useState('');
+
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const fillQuickCredentials = (account) => {
+    setActiveTab('login');
+    setLoginEmail(account.email);
+    setLoginPassword(account.password);
+    setErrorMessage('');
   };
 
-  const handleCustomLogin = async (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-    const res = await loginWithCredentials(email, role);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const res = await login(loginEmail, loginPassword);
     if (res.success) {
-      if (role === 'ADMIN') {
+      if (res.user?.role === 'ADMIN') {
         navigate('/admin/analytics');
       } else {
         navigate('/dashboard');
       }
     } else {
-      setError(res.error || 'Login failed');
+      setErrorMessage(res.error);
+    }
+  };
+
+  const handleRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    if (regPassword !== regConfirmPassword) {
+      setErrorMessage('Passwords do not match. Please verify.');
+      return;
+    }
+
+    if (regPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long.');
+      return;
+    }
+
+    const res = await register({
+      name: regName,
+      email: regEmail,
+      password: regPassword,
+      role: regRole,
+      department: regDepartment,
+      rollNumber: regRollNumber,
+    });
+
+    if (res.success) {
+      if (res.user?.role === 'ADMIN') {
+        navigate('/admin/analytics');
+      } else {
+        navigate('/dashboard');
+      }
+    } else {
+      setErrorMessage(res.error);
     }
   };
 
   return (
     <div className="min-h-[85vh] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      {/* Brand Header */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="w-14 h-14 rounded-2xl bg-campus-800 text-white flex items-center justify-center mx-auto shadow-lg shadow-campus-800/25">
+        <div className="w-14 h-14 rounded-2xl bg-thapar-800 text-white flex items-center justify-center mx-auto shadow-lg shadow-thapar-800/25">
           <CalendarCheck className="w-8 h-8" />
         </div>
-        <h2 className="mt-4 text-3xl font-extrabold text-slate-900 tracking-tight">CampusSlot</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Intelligent Campus Resource Booking & Auto-Allocation Cloud System
+        <h1 className="mt-4 text-3xl font-extrabold text-slate-900 tracking-tight">
+          Resourcify
+        </h1>
+        <p className="mt-1 text-sm font-semibold text-thapar-800">
+          Thapar Institute of Engineering & Technology (TIET)
+        </p>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Intelligent Campus Facility Booking & Automated Resource Allocation
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-lg">
         <div className="bg-white py-8 px-6 shadow-xl rounded-2xl border border-slate-200 sm:px-10">
-          {/* Quick Demo Sign In */}
-          <div className="mb-6">
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2.5">
-              Instant One-Click Login (Role-Based Demo)
-            </label>
-            <div className="space-y-2">
-              {DEMO_PROFILES.map((profile) => (
+          {/* Tab Selector: Sign In vs Register */}
+          <div className="flex border-b border-slate-200 mb-6">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('login');
+                setErrorMessage('');
+              }}
+              className={`w-1/2 pb-3 text-sm font-bold text-center border-b-2 transition-colors ${
+                activeTab === 'login'
+                  ? 'border-thapar-800 text-thapar-800'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('register');
+                setErrorMessage('');
+              }}
+              className={`w-1/2 pb-3 text-sm font-bold text-center border-b-2 transition-colors ${
+                activeTab === 'register'
+                  ? 'border-thapar-800 text-thapar-800'
+                  : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
+
+          {/* Quick Demo Credentials Assistant */}
+          <div className="mb-6 p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+              Default Thapar Accounts (Click to Auto-fill)
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {THAPAR_DEMO_ACCOUNTS.map((acc) => (
                 <button
-                  key={profile.id}
-                  onClick={() => handleDemoSelect(profile)}
+                  key={acc.role}
                   type="button"
-                  className="w-full flex items-center justify-between p-3 rounded-xl border border-slate-200 hover:border-campus-400 hover:bg-slate-50 transition-all text-left group"
+                  onClick={() => fillQuickCredentials(acc)}
+                  className="p-2 rounded-lg bg-white border border-slate-200 hover:border-thapar-800 hover:bg-thapar-50/50 text-left transition-all group"
                 >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                        profile.role === 'ADMIN'
-                          ? 'bg-purple-100 text-purple-700'
-                          : profile.role === 'FACULTY'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-emerald-100 text-emerald-700'
-                      }`}
-                    >
-                      {profile.role === 'ADMIN' ? (
-                        <ShieldCheck className="w-5 h-5" />
-                      ) : profile.role === 'FACULTY' ? (
-                        <Briefcase className="w-5 h-5" />
-                      ) : (
-                        <GraduationCap className="w-5 h-5" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-800 group-hover:text-campus-900">
-                        {profile.name}
-                      </p>
-                      <p className="text-xs text-slate-400">{profile.role} • {profile.department.split('&')[0]}</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-campus-600 transition-transform group-hover:translate-x-0.5" />
+                  <span className="block text-[11px] font-bold text-slate-800 group-hover:text-thapar-800">
+                    {acc.role === 'ADMIN' ? 'Admin' : acc.role === 'FACULTY' ? 'Faculty' : 'Student'}
+                  </span>
+                  <span className="block text-[9px] text-slate-400 truncate">{acc.email.split('@')[0]}</span>
                 </button>
               ))}
             </div>
+            <p className="text-[10px] text-slate-400 mt-2 text-center">
+              Default password for all seed accounts: <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-slate-700">Thapar@2026</code>
+            </p>
           </div>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-200" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-slate-400 font-semibold tracking-wider">or sign in with email</span>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg text-xs">
-              {error}
+          {errorMessage && (
+            <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-medium">
+              {errorMessage}
             </div>
           )}
 
-          {/* Custom Login Form */}
-          <form onSubmit={handleCustomLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Campus Email Address</label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your.name@campusslot.edu"
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800 text-sm"
-              />
+          {successMessage && (
+            <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-medium">
+              {successMessage}
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Role Designation</label>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800 text-sm bg-white"
+          {/* TAB 1: LOGIN FORM */}
+          {activeTab === 'login' ? (
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Thapar Email Address</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="student@thapar.edu"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Enter your password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 px-4 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-sm shadow-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-thapar-800/50 flex items-center justify-center space-x-2"
               >
-                <option value="STUDENT">Student</option>
-                <option value="FACULTY">Faculty Member</option>
-                <option value="ADMIN">Campus Administrator</option>
-              </select>
-            </div>
+                <span>{loading ? 'Authenticating...' : 'Sign In to Resourcify'}</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </form>
+          ) : (
+            /* TAB 2: REGISTRATION FORM */
+            <form onSubmit={handleRegisterSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Aarav Sharma"
+                    value={regName}
+                    onChange={(e) => setRegName(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                  />
+                </div>
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 px-4 rounded-lg bg-campus-800 hover:bg-campus-900 text-white font-semibold text-sm shadow-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-campus-800/50"
-            >
-              {loading ? 'Authenticating...' : 'Sign In to CampusSlot'}
-            </button>
-          </form>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Thapar Email (@thapar.edu)</label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="yourname@thapar.edu"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    className="w-full pl-9 pr-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Campus Role</label>
+                  <select
+                    value={regRole}
+                    onChange={(e) => setRegRole(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                  >
+                    <option value="STUDENT">Student</option>
+                    <option value="FACULTY">Faculty Member</option>
+                    <option value="ADMIN">Campus Administrator</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Roll / Employee ID</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 102103456"
+                    value={regRollNumber}
+                    onChange={(e) => setRegRollNumber(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Department</label>
+                <select
+                  value={regDepartment}
+                  onChange={(e) => setRegDepartment(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                >
+                  <option value="Computer Science & Engineering (CSED)">Computer Science & Engineering (CSED)</option>
+                  <option value="Electronics & Communication (ECED)">Electronics & Communication (ECED)</option>
+                  <option value="Electrical & Instrumentation (EIED)">Electrical & Instrumentation (EIED)</option>
+                  <option value="Mechanical Engineering (MED)">Mechanical Engineering (MED)</option>
+                  <option value="Biotechnology (BTD)">Biotechnology (BTD)</option>
+                  <option value="Thapar School of Liberal Arts (TSLAS)">Thapar School of Liberal Arts (TSLAS)</option>
+                  <option value="STEP Venture Lab / Incubator">STEP Venture Lab / Incubator</option>
+                  <option value="Estate & Facilities Administration">Estate & Facilities Administration</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Min 6 characters"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Confirm Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Repeat password"
+                    value={regConfirmPassword}
+                    onChange={(e) => setRegConfirmPassword(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 px-4 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-sm shadow-sm transition-all focus:outline-hidden focus:ring-2 focus:ring-thapar-800/50"
+              >
+                {loading ? 'Registering...' : 'Complete TIET Registration'}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

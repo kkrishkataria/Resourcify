@@ -11,8 +11,9 @@ import { checkInService } from '../services/checkinService.js';
 
 const router = Router();
 
-// Public / Auth routes
-router.post('/auth/login', (req, res, next) => authController.mockLogin(req, res, next));
+// Real Authentication routes
+router.post('/auth/register', (req, res, next) => authController.register(req, res, next));
+router.post('/auth/login', (req, res, next) => authController.login(req, res, next));
 router.get('/auth/me', authenticate, (req, res, next) => authController.getCurrentUser(req, res, next));
 router.get('/users', authenticate, requireRole(['ADMIN']), (req, res, next) => authController.getAllUsers(req, res, next));
 

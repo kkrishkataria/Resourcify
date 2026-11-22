@@ -3,72 +3,100 @@ import api from '../services/api.js';
 
 const AuthContext = createContext(null);
 
-export const DEMO_PROFILES = [
+export const THAPAR_DEMO_ACCOUNTS = [
   {
-    id: 'demo-student-01',
-    name: 'Alex Johnson',
-    email: 'alex.student@campusslot.edu',
     role: 'STUDENT',
-    department: 'Computer Science & Engineering',
+    name: 'Aarav Sharma',
+    email: 'student@thapar.edu',
+    password: 'Thapar@2026',
+    department: 'Computer Science & Engineering (CSED)',
+    rollNumber: '102103456',
   },
   {
-    id: 'demo-faculty-01',
-    name: 'Dr. Marcus Roberts',
-    email: 'prof.roberts@campusslot.edu',
     role: 'FACULTY',
-    department: 'Electrical Engineering & AI',
+    name: 'Dr. Rajesh K. Bawa',
+    email: 'faculty@thapar.edu',
+    password: 'Thapar@2026',
+    department: 'Computer Science & Engineering (CSED)',
+    rollNumber: 'FAC-CSED-402',
   },
   {
-    id: 'demo-admin-01',
-    name: 'Campus Operations Admin',
-    email: 'admin@campusslot.edu',
     role: 'ADMIN',
-    department: 'Facilities & Campus Administration',
+    name: 'TIET Central Facilities & Estate Office',
+    email: 'admin@thapar.edu',
+    password: 'Thapar@2026',
+    department: 'Estate & Administration Directorate',
+    rollNumber: 'ADM-EST-01',
   },
 ];
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('campusslot_user');
-    return saved ? JSON.parse(saved) : DEMO_PROFILES[0];
+    const saved = localStorage.getItem('resourcify_user');
+    return saved ? JSON.parse(saved) : null;
   });
-  const [token, setToken] = useState(() => localStorage.getItem('campusslot_token') || 'mock-jwt-student-demo-student-01');
+  const [token, setToken] = useState(() => localStorage.getItem('resourcify_token') || null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
-      localStorage.setItem('campusslot_user', JSON.stringify(user));
+      localStorage.setItem('resourcify_user', JSON.stringify(user));
     } else {
-      localStorage.removeItem('campusslot_user');
+      localStorage.removeItem('resourcify_user');
     }
   }, [user]);
 
   useEffect(() => {
     if (token) {
-      localStorage.setItem('campusslot_token', token);
+      localStorage.setItem('resourcify_token', token);
+      localStorage.setItem('campusslot_token', token); // compatibility
     } else {
+      localStorage.removeItem('resourcify_token');
       localStorage.removeItem('campusslot_token');
     }
   }, [token]);
 
-  const switchProfile = (profile) => {
-    setUser(profile);
-    const mockToken = `mock-jwt-${profile.role.toLowerCase()}-${profile.id}`;
-    setToken(mockToken);
-  };
-
-  const loginWithCredentials = async (email, role) => {
+  /**
+   * Real login with email and password
+   */
+  const login = async (email, password) => {
     setLoading(true);
     try {
-      const res = await api.post('/auth/login', { email, role });
+      const res = await api.post('/auth/login', { email, password });
       if (res.data?.success && res.data.data) {
         setUser(res.data.data.user);
         setToken(res.data.data.token);
-        return { success: true };
+        return { success: true, user: res.data.data.user };
       }
-      return { success: false, error: 'Login failed' };
+      return { success: false, error: res.data?.error || 'Login failed' };
     } catch (err) {
-      return { success: false, error: err.response?.data?.error || err.message };
+      return {
+        success: false,
+        error: err.response?.data?.error || err.message || 'Login failed. Please check your credentials.',
+      };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Real user registration for Thapar students & faculty
+   */
+  const register = async (userData) => {
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/register', userData);
+      if (res.data?.success && res.data.data) {
+        setUser(res.data.data.user);
+        setToken(res.data.data.token);
+        return { success: true, user: res.data.data.user };
+      }
+      return { success: false, error: res.data?.error || 'Registration failed' };
+    } catch (err) {
+      return {
+        success: false,
+        error: err.response?.data?.error || err.message || 'Registration failed.',
+      };
     } finally {
       setLoading(false);
     }
@@ -77,6 +105,8 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setUser(null);
     setToken(null);
+    localStorage.removeItem('resourcify_user');
+    localStorage.removeItem('resourcify_token');
     localStorage.removeItem('campusslot_user');
     localStorage.removeItem('campusslot_token');
   };
@@ -91,8 +121,8 @@ export function AuthProvider({ children }) {
         isAdmin: user?.role === 'ADMIN',
         isFaculty: user?.role === 'FACULTY',
         isStudent: user?.role === 'STUDENT',
-        switchProfile,
-        loginWithCredentials,
+        login,
+        register,
         logout,
       }}
     >
