@@ -14,14 +14,6 @@ export class AllocationService {
   /**
    * Computes suitability score for candidate resource matching requested requirements.
    * Higher score = better candidate.
-   * 
-   * Scoring parameters:
-   * 1. Capacity Fit (Max 50 points):
-   *    Penalizes oversized rooms (e.g. allocating a 100-seat hall for 2 people).
-   * 2. Equipment Match (Max 30 points):
-   *    Bonus for full equipment match or extra useful amenities.
-   * 3. Duration Fit (Max 20 points):
-   *    Compatibility with min/max booking limits.
    */
   calculateSuitabilityScore(resource, request) {
     let score = 100;
@@ -73,12 +65,63 @@ export class AllocationService {
   }
 
   /**
+   * Evaluates and returns all ranked candidates matching constraints WITHOUT immediately booking.
+   * Allows the user to compare scores, capacities, and pick their preferred venue.
+   */
+  async findRankedCandidates(request) {
+    const {
+      category,
+      capacity,
+      durationMinutes,
+      date,
+      preferredTime,
+      equipmentRequirements = [],
+    } = request;
+
+    const duration = Number(durationMinutes) || 60;
+    const startMin = timeToMinutes(preferredTime);
+    const endMin = startMin + duration;
+    const endTime = minutesToTime(endMin);
+
+    const candidates = await resourceRepository.findByFilters({
+      category,
+      minCapacity: capacity,
+      status: 'ACTIVE',
+      equipment: equipmentRequirements,
+    });
+
+    const evaluated = [];
+    for (const resource of candidates) {
+      const withinHours = isWithinOperatingHours(preferredTime, endTime, resource.operatingHours);
+      const suitabilityScore = this.calculateSuitabilityScore(resource, request);
+      const isAvailable = withinHours ? await this.isResourceAvailable(resource.id, date, preferredTime, endTime) : false;
+
+      evaluated.push({
+        resource,
+        suitabilityScore,
+        isAvailable,
+        withinHours,
+        startTime: preferredTime,
+        endTime,
+        date,
+        capacityMatch: `${capacity} requested / ${resource.capacity} seats`,
+        excessCapacity: resource.capacity - capacity,
+      });
+    }
+
+    evaluated.sort((a, b) => {
+      if (a.isAvailable && !b.isAvailable) return -1;
+      if (!a.isAvailable && b.isAvailable) return 1;
+      return b.suitabilityScore - a.suitabilityScore;
+    });
+
+    return evaluated;
+  }
+
+  /**
    * Auto-allocates the most suitable resource for the user request.
    * If the top candidate is contested/locked by a concurrent booking,
    * automatically falls back to the next ranked candidate.
-   * 
-   * @param {Object} request - { category, capacity, durationMinutes, date, preferredTime, equipmentRequirements, purpose, attendeesCount }
-   * @param {Object} user - Authenticated user
    */
   async autoAllocate(request, user) {
     const {
@@ -88,7 +131,7 @@ export class AllocationService {
       date,
       preferredTime,
       equipmentRequirements = [],
-      purpose = 'Auto-allocated Campus Reservation',
+      purpose = 'Auto-allocated Campus Reservation at TIET',
       attendeesCount,
     } = request;
 
@@ -118,7 +161,6 @@ export class AllocationService {
     });
 
     if (candidates.length === 0) {
-      // Find smart alternatives
       const alternatives = await suggestionService.findAlternatives({
         category,
         capacity,
@@ -130,7 +172,7 @@ export class AllocationService {
 
       return {
         allocated: false,
-        message: 'No eligible resources found matching all strict criteria.',
+        message: 'No eligible Thapar facilities found matching all strict criteria.',
         alternatives,
       };
     }
@@ -170,7 +212,7 @@ export class AllocationService {
 
       const available = await this.isResourceAvailable(resource.id, date, preferredTime, endTime);
       if (!available) {
-        continue; // Try next ranked candidate
+        continue;
       }
 
       try {
@@ -192,6 +234,7 @@ export class AllocationService {
           resource,
           suitabilityScore: candidate.suitabilityScore,
           message: `Successfully allocated optimal resource: ${resource.name} (${resource.building}, Room ${resource.roomNumber})`,
+          allCandidates: scoredCandidates,
           rankingInfo: {
             rank: 1,
             totalEvaluated: scoredCandidates.length,
@@ -200,7 +243,6 @@ export class AllocationService {
         };
       } catch (err) {
         if (err.code === 'SLOT_CONFLICT') {
-          // A concurrent booking took this candidate; fallback to next
           continue;
         }
         throw err;
@@ -219,7 +261,7 @@ export class AllocationService {
 
     return {
       allocated: false,
-      message: `All ${scoredCandidates.length} eligible resources were occupied during ${preferredTime}-${endTime}.`,
+      message: `All ${scoredCandidates.length} eligible facilities were occupied during ${preferredTime}-${endTime}.`,
       triedResources: triedCandidates,
       alternatives,
     };

@@ -12,6 +12,10 @@ import {
   Building,
   ArrowRight,
   ShieldCheck,
+  Search,
+  Check,
+  XCircle,
+  SlidersHorizontal,
 } from 'lucide-react';
 
 export default function AutoAllocatePage() {
@@ -27,8 +31,11 @@ export default function AutoAllocatePage() {
   const [purpose, setPurpose] = useState('');
 
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState(''); // 'find' | 'instant'
   const [allocationResult, setAllocationResult] = useState(null);
+  const [rankedCandidates, setRankedCandidates] = useState(null);
   const [error, setError] = useState('');
+  const [bookingCandidateId, setBookingCandidateId] = useState(null);
 
   const equipmentCatalog = [
     'Workstations',
@@ -45,11 +52,16 @@ export default function AutoAllocatePage() {
     );
   };
 
-  const handleAllocate = async (e) => {
-    e.preventDefault();
+  /**
+   * Option 1: Find & Compare Ranked Matches (Preview without booking)
+   */
+  const handleFindAndCompare = async (e) => {
+    e?.preventDefault();
     setLoading(true);
+    setMode('find');
     setError('');
     setAllocationResult(null);
+    setRankedCandidates(null);
 
     try {
       const res = await api.post('/allocate', {
@@ -59,8 +71,43 @@ export default function AutoAllocatePage() {
         date,
         preferredTime,
         equipmentRequirements: selectedEquipment,
-        purpose: purpose || 'Intelligent Auto-Allocated Reservation',
+        purpose: purpose || 'TIET Academic Session',
         attendeesCount: Number(capacity),
+        previewOnly: true,
+      });
+
+      if (res.data?.success) {
+        setRankedCandidates(res.data.data || []);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Failed to search candidate facilities.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Option 2: Instant Auto-Allocate & Book (One-click optimal lock)
+   */
+  const handleInstantAutoAllocate = async (e) => {
+    e?.preventDefault();
+    setLoading(true);
+    setMode('instant');
+    setError('');
+    setAllocationResult(null);
+    setRankedCandidates(null);
+
+    try {
+      const res = await api.post('/allocate', {
+        category,
+        capacity: Number(capacity),
+        durationMinutes: Number(durationMinutes),
+        date,
+        preferredTime,
+        equipmentRequirements: selectedEquipment,
+        purpose: purpose || 'Intelligent Auto-Allocated Reservation at TIET',
+        attendeesCount: Number(capacity),
+        previewOnly: false,
       });
 
       if (res.data) {
@@ -73,6 +120,33 @@ export default function AutoAllocatePage() {
     }
   };
 
+  /**
+   * Book a specific candidate from the ranked comparison list
+   */
+  const handleBookCandidate = async (candidate) => {
+    setBookingCandidateId(candidate.resource.id);
+    setError('');
+
+    try {
+      const res = await api.post('/bookings', {
+        resourceId: candidate.resource.id,
+        date: candidate.date,
+        startTime: candidate.startTime,
+        endTime: candidate.endTime,
+        purpose: purpose || 'Selected from Ranked Matches',
+        attendeesCount: Number(capacity),
+      });
+
+      if (res.data?.success) {
+        navigate('/my-bookings');
+      }
+    } catch (err) {
+      alert(`Booking failed: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setBookingCandidateId(null);
+    }
+  };
+
   const handleBookAlternative = async (alt) => {
     setLoading(true);
     try {
@@ -81,7 +155,7 @@ export default function AutoAllocatePage() {
         date: alt.date,
         startTime: alt.startTime,
         endTime: alt.endTime,
-        purpose: purpose || 'Auto-allocation Alternative Reservation',
+        purpose: purpose || 'Auto-allocation Alternative Reservation at TIET',
         attendeesCount: Number(capacity),
       });
 
@@ -99,15 +173,15 @@ export default function AutoAllocatePage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
       <div>
-        <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-campus-50 text-campus-800 border border-campus-200 mb-2">
-          <Sparkles className="w-3.5 h-3.5 text-campus-600" />
-          <span>Algorithmic Optimization Engine</span>
+        <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-thapar-100 text-thapar-800 border border-thapar-200 mb-2">
+          <Sparkles className="w-3.5 h-3.5 text-thapar-800" />
+          <span>Thapar AI Resource Optimization Engine</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-          Intelligent Resource Auto-Allocation
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          Find & Auto-Allocate Campus Facilities
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Specify your constraints. CampusSlot evaluates candidate facilities, scores capacity fit and amenities, and atomically acquires slot locks for the optimal venue.
+          Choose between <strong>previewing ranked venue comparisons</strong> or <strong>one-click instant reservation</strong> across Thapar Institute.
         </p>
       </div>
 
@@ -118,9 +192,9 @@ export default function AutoAllocatePage() {
         </div>
       )}
 
-      {/* Form Card */}
+      {/* Constraints Form Card */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs">
-        <form onSubmit={handleAllocate} className="space-y-6">
+        <form className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Category */}
             <div>
@@ -128,13 +202,13 @@ export default function AutoAllocatePage() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
               >
-                <option value="COMPUTER_LAB">Computer Lab</option>
-                <option value="SEMINAR_ROOM">Seminar Room</option>
-                <option value="STUDY_ROOM">Study Room</option>
-                <option value="SPORTS_COURT">Sports Court</option>
-                <option value="CONFERENCE_HALL">Conference Hall</option>
+                <option value="COMPUTER_LAB">Computer Lab (COS Complex / AI Labs)</option>
+                <option value="SEMINAR_ROOM">Seminar Room (Main Audi / LP Block)</option>
+                <option value="STUDY_ROOM">Study Room (Nava Nalanda Central Library)</option>
+                <option value="SPORTS_COURT">Sports Court (Sports Complex near Hostel J)</option>
+                <option value="CONFERENCE_HALL">Conference Hall (STEP Venture Lab)</option>
               </select>
             </div>
 
@@ -144,11 +218,11 @@ export default function AutoAllocatePage() {
               <input
                 type="number"
                 min="1"
-                max="200"
+                max="650"
                 required
                 value={capacity}
                 onChange={(e) => setCapacity(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
               />
             </div>
 
@@ -161,7 +235,7 @@ export default function AutoAllocatePage() {
                 required
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
               />
             </div>
 
@@ -171,7 +245,7 @@ export default function AutoAllocatePage() {
               <select
                 value={preferredTime}
                 onChange={(e) => setPreferredTime(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
               >
                 {['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'].map((t) => (
                   <option key={t} value={t}>{t}</option>
@@ -185,7 +259,7 @@ export default function AutoAllocatePage() {
               <select
                 value={durationMinutes}
                 onChange={(e) => setDurationMinutes(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
               >
                 <option value={30}>30 Minutes (1 Slot)</option>
                 <option value={60}>60 Minutes (2 Slots)</option>
@@ -197,20 +271,20 @@ export default function AutoAllocatePage() {
 
             {/* Purpose */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Reservation Purpose</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">Session Purpose / Notes</label>
               <input
                 type="text"
-                placeholder="e.g. Capstone project sprint, Faculty committee"
+                placeholder="e.g. Capstone project sprint, Faculty committee, Study group"
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-campus-800/20 focus:border-campus-800"
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-hidden focus:ring-2 focus:ring-thapar-800/20 focus:border-thapar-800"
               />
             </div>
           </div>
 
           {/* Equipment checkboxes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-2">Required Equipment / Facilities</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-2">Required Equipment / Amenities</label>
             <div className="flex flex-wrap gap-2">
               {equipmentCatalog.map((eq) => {
                 const active = selectedEquipment.includes(eq);
@@ -221,7 +295,7 @@ export default function AutoAllocatePage() {
                     onClick={() => toggleEquipment(eq)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
                       active
-                        ? 'bg-campus-800 text-white border-campus-800 shadow-xs'
+                        ? 'bg-thapar-800 text-white border-thapar-800 shadow-xs'
                         : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                     }`}
                   >
@@ -232,29 +306,124 @@ export default function AutoAllocatePage() {
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex justify-end">
+          {/* Dual Action Buttons */}
+          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-end gap-3">
+            {/* Option A: Find & Compare */}
             <button
-              type="submit"
+              type="button"
+              onClick={handleFindAndCompare}
               disabled={loading}
-              className="px-6 py-3 rounded-xl bg-campus-800 hover:bg-campus-900 text-white font-semibold text-sm shadow-xs transition-colors flex items-center space-x-2"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition-colors flex items-center justify-center space-x-2"
+            >
+              <Search className="w-4 h-4 text-slate-500" />
+              <span>{loading && mode === 'find' ? 'Evaluating Matches...' : 'Find & Compare Ranked Options'}</span>
+            </button>
+
+            {/* Option B: Instant Auto-Allocate */}
+            <button
+              type="button"
+              onClick={handleInstantAutoAllocate}
+              disabled={loading}
+              className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-xs shadow-xs transition-colors flex items-center justify-center space-x-2"
             >
               <Sparkles className="w-4 h-4" />
-              <span>{loading ? 'Evaluating Suitability & Reserving...' : 'Find & Allocate Best Resource'}</span>
+              <span>{loading && mode === 'instant' ? 'Allocating & Locking...' : 'Instant Auto-Allocate & Book'}</span>
             </button>
           </div>
         </form>
       </div>
 
-      {/* Result Section */}
+      {/* VIEW 1: RANKED CANDIDATES COMPARISON (FIND & COMPARE MODE) */}
+      {rankedCandidates && (
+        <div className="space-y-4 animate-in fade-in">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Ranked Facility Matches</h2>
+              <p className="text-xs text-slate-500">
+                Found {rankedCandidates.length} eligible facilities at Thapar. Compare suitability and choose your venue:
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {rankedCandidates.map((cand, idx) => (
+              <div
+                key={cand.resource.id}
+                className={`bg-white rounded-2xl border p-5 shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                  idx === 0 ? 'border-thapar-800/40 ring-1 ring-thapar-800/20' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase bg-thapar-100 text-thapar-900 border border-thapar-200">
+                      Rank #{idx + 1} • {cand.suitabilityScore}/100 Match
+                    </span>
+                    {cand.isAvailable ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        ✓ Available at {cand.startTime}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        Occupied at {cand.startTime}
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="text-base font-bold text-slate-900">{cand.resource.name}</h3>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                    <span className="flex items-center space-x-1">
+                      <Building className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{cand.resource.building}, Rm {cand.resource.roomNumber}</span>
+                    </span>
+                    <span className="flex items-center space-x-1 font-semibold text-slate-800">
+                      <Users className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{cand.resource.capacity} Seats ({cand.capacityMatch})</span>
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 text-[11px] text-slate-500 pt-1">
+                    {cand.resource.equipment?.map((eq, eqIdx) => (
+                      <span key={eqIdx} className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                        ✓ {eq}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2 shrink-0">
+                  {cand.isAvailable ? (
+                    <button
+                      onClick={() => handleBookCandidate(cand)}
+                      disabled={bookingCandidateId === cand.resource.id}
+                      className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center space-x-1.5"
+                    >
+                      <span>{bookingCandidateId === cand.resource.id ? 'Reserving...' : 'Book This Venue'}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  ) : (
+                    <Link
+                      to={`/resources/${cand.resource.id}`}
+                      className="w-full md:w-auto px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 text-center"
+                    >
+                      View Other Free Slots
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: INSTANT ALLOCATION RESULT */}
       {allocationResult && (
-        <div className="space-y-6">
+        <div className="space-y-6 animate-in fade-in">
           {allocationResult.allocated ? (
-            /* Successful Allocation Card */
             <div className="bg-white rounded-2xl border-2 border-emerald-500/40 p-6 sm:p-8 shadow-md space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 text-emerald-700">
                   <CheckCircle2 className="w-6 h-6" />
-                  <span className="font-bold text-sm uppercase tracking-wider">Optimal Resource Confirmed</span>
+                  <span className="font-bold text-sm uppercase tracking-wider">Optimal Venue Confirmed</span>
                 </div>
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                   Suitability Score: {allocationResult.suitabilityScore}/100
@@ -296,20 +465,19 @@ export default function AutoAllocatePage() {
               <div className="pt-2 flex flex-wrap gap-3">
                 <Link
                   to="/my-bookings"
-                  className="px-5 py-2.5 rounded-xl bg-campus-800 hover:bg-campus-900 text-white font-semibold text-xs transition-colors"
+                  className="px-5 py-2.5 rounded-xl bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-xs transition-colors"
                 >
-                  View in My Bookings
+                  View in My Reservations
                 </Link>
                 <button
                   onClick={() => setAllocationResult(null)}
                   className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-semibold text-xs hover:bg-slate-50"
                 >
-                  Allocate Another
+                  Search Again
                 </button>
               </div>
             </div>
           ) : (
-            /* Unallocated: Show Smart Suggestions */
             <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-6">
               <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs space-y-1">
                 <p className="font-bold text-sm">Requested Slot Unavailable</p>
@@ -327,11 +495,11 @@ export default function AutoAllocatePage() {
                   {allocationResult.alternatives.map((alt, idx) => (
                     <div
                       key={idx}
-                      className="p-4 rounded-xl border border-slate-200 hover:border-campus-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      className="p-4 rounded-xl border border-slate-200 hover:border-thapar-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="space-y-1.5">
                         <div className="flex items-center space-x-2">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-campus-50 text-campus-800 border border-campus-200">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-thapar-50 text-thapar-900 border border-thapar-200">
                             Score: {Math.round(alt.suitabilityScore * 0.5 + alt.timeProximityScore * 0.5)}/100
                           </span>
                           <span className="text-xs font-bold text-slate-900">{alt.resource.name}</span>
@@ -339,7 +507,7 @@ export default function AutoAllocatePage() {
 
                         <div className="flex flex-wrap items-center gap-x-3 text-xs text-slate-600">
                           <span className="font-semibold text-slate-800 flex items-center space-x-1">
-                            <Clock className="w-3.5 h-3.5 text-campus-600" />
+                            <Clock className="w-3.5 h-3.5 text-thapar-800" />
                             <span>{alt.startTime} - {alt.endTime}</span>
                           </span>
                           <span>• {alt.resource.building} (Cap: {alt.resource.capacity})</span>
@@ -356,7 +524,7 @@ export default function AutoAllocatePage() {
 
                       <button
                         onClick={() => handleBookAlternative(alt)}
-                        className="px-4 py-2 rounded-lg bg-campus-800 hover:bg-campus-900 text-white font-semibold text-xs shadow-xs transition-colors shrink-0 flex items-center justify-center space-x-1.5"
+                        className="px-4 py-2 rounded-lg bg-thapar-800 hover:bg-thapar-900 text-white font-semibold text-xs shadow-xs transition-colors shrink-0 flex items-center justify-center space-x-1.5"
                       >
                         <span>Confirm This Option</span>
                         <ArrowRight className="w-3.5 h-3.5" />
