@@ -65,7 +65,7 @@ export default function Navbar() {
           </div>
 
           {/* Navigation Links (Tailored for Role) */}
-          <div className="hidden md:flex items-center space-x-1 overflow-x-auto py-1">
+          <div className="hidden md:flex items-center space-x-1 no-scrollbar">
             {isAdmin ? (
               /* ADMIN SPECIFIC NAVIGATION */
               <>
