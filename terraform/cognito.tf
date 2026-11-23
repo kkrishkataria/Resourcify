@@ -1,0 +1,49 @@
+# Cognito User Pool
+resource "aws_cognito_user_pool" "user_pool" {
+  name                     = "CampusSlot-UserPool"
+  auto_verified_attributes = ["email"]
+  username_attributes      = ["email"]
+
+  password_policy {
+    minimum_length    = 8
+    require_lowercase = true
+    require_numbers   = true
+    require_symbols   = false
+    require_uppercase = true
+  }
+
+  schema {
+    attribute_data_type = "String"
+    name                = "role"
+    mutable             = true
+    required            = false
+    string_attribute_constraints {
+      min_length = "1"
+      max_length = "50"
+    }
+  }
+
+  schema {
+    attribute_data_type = "String"
+    name                = "department"
+    mutable             = true
+    required            = false
+    string_attribute_constraints {
+      min_length = "1"
+      max_length = "100"
+    }
+  }
+}
+
+# Cognito User Pool Client
+resource "aws_cognito_user_pool_client" "web_client" {
+  name         = "CampusSlot-WebClient"
+  user_pool_id = aws_cognito_user_pool.user_pool.id
+
+  generate_secret = false
+  explicit_auth_flows = [
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH"
+  ]
+}
