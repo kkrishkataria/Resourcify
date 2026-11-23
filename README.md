@@ -7,7 +7,7 @@
 
 ## 🏛️ System Architecture
 
-Resourcify is engineered in **pure JavaScript (Node.js & React JSX)** using serverless cloud paradigms on Amazon Web Services (AWS).
+Resourcify is engineered in **pure JavaScript (Node.js & React JSX)** using serverless cloud paradigms on Amazon Web Services (AWS) alongside a zero-dependency **local-memory mode** for seamless offline development.
 
 ```mermaid
 flowchart TD
@@ -54,6 +54,87 @@ flowchart TD
         ApiLambda -->|Publish Alert| SNS
         AutoReleaseLambda -->|Publish Alert| SNS
     end
+```
+
+---
+
+## 💻 Quickstart (Run Locally — No AWS Needed)
+
+The project includes an in-memory database mode (`DB_MODE=local-memory`), allowing collaborators to run and test everything offline without AWS accounts or cloud billing.
+
+### 1. Clone the repository
+```bash
+git clone https://github.com/<your-username>/Resourcify.git
+cd Resourcify
+```
+
+### 2. Install Dependencies
+```bash
+npm install
+```
+*(This installs root, backend, and frontend dependencies via npm workspaces).*
+
+### 3. Setup Environment Variables
+```bash
+# Create backend .env from template
+cp .env.example backend/.env
+```
+Ensure `backend/.env` has:
+```env
+PORT=5001
+NODE_ENV=development
+DB_MODE=local-memory
+```
+
+### 4. Start Development Servers
+```bash
+npm run dev
+```
+This launches both servers simultaneously using `concurrently`:
+* 🌐 **Frontend (React + Vite):** [http://localhost:5173](http://localhost:5173)
+* 🔌 **Backend (Express API):** [http://localhost:5001/api](http://localhost:5001/api)
+* 🩺 **Health Check:** [http://localhost:5001/health](http://localhost:5001/health)
+
+---
+
+## ☁️ Deploy to AWS with Terraform
+
+For live production deployment to AWS, we provide complete Terraform infrastructure code under [`terraform/`](./terraform).
+
+### Summary of AWS Services Used:
+* **AWS Lambda:** Serverless Node.js 20.x functions for the Express API and automated no-show cleanup.
+* **Amazon API Gateway:** REST API routing HTTP requests to Lambda.
+* **Amazon DynamoDB:** 4 serverless tables (`Resources`, `Bookings`, `SlotLocks`, `Users`) with Pay-Per-Request billing.
+* **Amazon Cognito:** User pool authentication and JWT claims.
+* **Amazon SNS:** Push notification topic for reservation events.
+* **Amazon S3 & CloudFront:** Globally distributed React SPA hosting with HTTPS and origin access control.
+
+### Quick Deployment Steps:
+For the full guide with operations and teardown, see [**`AWS_OPERATIONS.md`**](./AWS_OPERATIONS.md).
+
+```powershell
+# 1. Package backend Lambda bundle with dependencies
+.\build-lambda.ps1
+
+# 2. Deploy infrastructure via Terraform
+cd terraform
+terraform init
+terraform apply -auto-approve
+
+# 3. Seed campus facilities and users into DynamoDB
+cd ..\backend
+npm run seed
+
+# 4. Build and upload frontend to S3
+cd ..\frontend
+npm run build
+aws s3 sync dist s3://<s3_bucket_name_from_terraform_output> --delete
+```
+
+### Teardown (Stop all cloud resources):
+```powershell
+cd terraform
+terraform destroy -auto-approve
 ```
 
 ---
@@ -123,14 +204,24 @@ npm --prefix backend test
 
 ---
 
-## 💻 Quickstart (Run Locally)
+## 📂 Project Structure
 
-```bash
-# Terminal 1: Backend (Port 5001)
-npm run dev:backend
-
-# Terminal 2: Frontend (Port 5173)
-npm run dev:frontend
+```text
+Resourcify/
+├── backend/                  # Express REST API (ESM)
+│   ├── src/                  # Controllers, services, repositories
+│   └── tests/                # Automated Jest test suites
+├── frontend/                 # React 18 SPA (Vite + Tailwind CSS)
+│   ├── src/                  # Views, components, auth context
+│   └── public/               # Static assets
+├── terraform/                # Infrastructure as Code (AWS Serverless)
+│   ├── main.tf               # Providers & caller identity
+│   ├── dynamodb.tf           # DynamoDB tables & GSIs
+│   ├── lambda.tf             # Lambda functions & API Gateway
+│   ├── cognito.tf            # Cognito User Pool & Web Client
+│   ├── s3_cloudfront.tf      # S3 Bucket & CloudFront CDN
+│   └── outputs.tf            # Live endpoints & resource IDs
+├── build-lambda.ps1          # Standalone Lambda packaging script
+├── AWS_OPERATIONS.md         # Complete AWS deploy & teardown operations
+└── package.json              # Root npm workspaces configuration
 ```
-Open **`http://localhost:5173`** in your browser.
-Click any of the **Quick Demo Account** buttons on the login page (or enter your own credentials) to sign in immediately.
