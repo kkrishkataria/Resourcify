@@ -122,7 +122,7 @@ describe('Resourcify (Thapar TIET) REST API End-to-End Integration Tests', () =>
       .set('x-user-role', 'STUDENT')
       .send({
         resourceId: 'res-tiet-study-02',
-        date: '2026-11-25',
+        date: '2026-12-01',
         startTime: '16:00',
         endTime: '17:30',
         purpose: 'Capstone Project Review at Central Library',
