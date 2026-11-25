@@ -97,44 +97,36 @@ This launches both servers simultaneously using `concurrently`:
 
 ---
 
-## ☁️ Deploy to AWS with Terraform
+## ☁️ Manual AWS Cloud Deployment (Mumbai `ap-south-1`)
 
-For live production deployment to AWS, we provide complete Terraform infrastructure code under [`terraform/`](./terraform).
+Resourcify is designed for manual deployment via the **AWS Management Console**, remaining 100% compliant with the **AWS Free Tier**.
 
 ### Summary of AWS Services Used:
-* **AWS Lambda:** Serverless Node.js 20.x functions for the Express API and automated no-show cleanup.
-* **Amazon API Gateway:** REST API routing HTTP requests to Lambda.
-* **Amazon DynamoDB:** 4 serverless tables (`Resources`, `Bookings`, `SlotLocks`, `Users`) with Pay-Per-Request billing.
+* **AWS Lambda:** Serverless Node.js 20.x functions for the Express REST API (`CampusSlotApiFunction`) and automated no-show cleanup (`CampusSlotAutoReleaseFunction`).
+* **Amazon API Gateway:** HTTP API routing requests to the Lambda API handler with low-latency and CORS.
+* **Amazon DynamoDB:** 4 serverless tables (`CampusSlot-Resources`, `CampusSlot-Bookings`, `CampusSlot-SlotLocks`, `CampusSlot-Users`) with On-Demand billing (Pay-per-request).
 * **Amazon Cognito:** User pool authentication and JWT claims.
-* **Amazon SNS:** Push notification topic for reservation events.
+* **Amazon EventBridge:** Scheduled rule (`rate(5 minutes)`) triggering the auto-release worker.
+* **Amazon SNS:** Push notification topic for reservation events and alert dispatches.
 * **Amazon S3 & CloudFront:** Globally distributed React SPA hosting with HTTPS and origin access control.
+* **Amazon CloudWatch:** Serverless telemetry, metric alarms, and structured application logging.
 
-### Quick Deployment Steps:
-For the full guide with operations and teardown, see [**`AWS_OPERATIONS.md`**](./AWS_OPERATIONS.md).
+### Step-by-Step AWS Deployment:
+For the full guide covering every console screen, see [**`AWS_OPERATIONS.md`**](./AWS_OPERATIONS.md).
 
-```powershell
-# 1. Package backend Lambda bundle with dependencies
-.\build-lambda.ps1
+```bash
+# 1. Package backend Lambda bundle for manual upload
+npm run package:backend
+# Creates: resourcify-backend.zip (upload to CampusSlotApiFunction in AWS Console)
 
-# 2. Deploy infrastructure via Terraform
-cd terraform
-terraform init
-terraform apply -auto-approve
+# 2. Build frontend for S3 deployment
+npm run build:frontend
+# Generates: frontend/dist/ (upload to your private S3 bucket)
 
 # 3. Seed campus facilities and users into DynamoDB
-cd ..\backend
+export DB_MODE=dynamodb
+export AWS_REGION=ap-south-1
 npm run seed
-
-# 4. Build and upload frontend to S3
-cd ..\frontend
-npm run build
-aws s3 sync dist s3://<s3_bucket_name_from_terraform_output> --delete
-```
-
-### Teardown (Stop all cloud resources):
-```powershell
-cd terraform
-terraform destroy -auto-approve
 ```
 
 ---
@@ -208,20 +200,14 @@ npm --prefix backend test
 
 ```text
 Resourcify/
-├── backend/                  # Express REST API (ESM)
-│   ├── src/                  # Controllers, services, repositories
-│   └── tests/                # Automated Jest test suites
-├── frontend/                 # React 18 SPA (Vite + Tailwind CSS)
+├── backend/                  # Node.js 20.x Express REST API (ESM)
+│   ├── scripts/              # Cross-platform Lambda packaging (package-lambda.js)
+│   ├── src/                  # Controllers, services, repositories (DynamoDB & local-memory)
+│   └── tests/                # Automated Jest test suites (integration, concurrency, etc.)
+├── frontend/                 # React 18 SPA (Vite + Tailwind CSS, pure JS/JSX)
 │   ├── src/                  # Views, components, auth context
-│   └── public/               # Static assets
-├── terraform/                # Infrastructure as Code (AWS Serverless)
-│   ├── main.tf               # Providers & caller identity
-│   ├── dynamodb.tf           # DynamoDB tables & GSIs
-│   ├── lambda.tf             # Lambda functions & API Gateway
-│   ├── cognito.tf            # Cognito User Pool & Web Client
-│   ├── s3_cloudfront.tf      # S3 Bucket & CloudFront CDN
-│   └── outputs.tf            # Live endpoints & resource IDs
-├── build-lambda.ps1          # Standalone Lambda packaging script
-├── AWS_OPERATIONS.md         # Complete AWS deploy & teardown operations
-└── package.json              # Root npm workspaces configuration
+│   └── public/               # Static assets & brand favicon
+├── AWS_OPERATIONS.md         # Complete Manual AWS Console Deployment Guide (ap-south-1)
+├── package.json              # Root npm workspaces configuration
+└── README.md                 # Project documentation
 ```

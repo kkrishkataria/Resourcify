@@ -34,7 +34,7 @@ describe('Conflict Detection & Atomic Slot Lock Transactions', () => {
     const booking = await bookingService.createBooking(
       {
         resourceId: 'res-test-conflict',
-        date: '2026-11-25',
+        date: '2026-11-30',
         startTime: '09:00',
         endTime: '10:30',
         purpose: 'Project Work',
@@ -53,7 +53,7 @@ describe('Conflict Detection & Atomic Slot Lock Transactions', () => {
     await bookingService.createBooking(
       {
         resourceId: 'res-test-conflict',
-        date: '2026-11-25',
+        date: '2026-11-30',
         startTime: '09:00',
         endTime: '10:30',
         purpose: 'First Session',
@@ -66,7 +66,7 @@ describe('Conflict Detection & Atomic Slot Lock Transactions', () => {
       bookingService.createBooking(
         {
           resourceId: 'res-test-conflict',
-          date: '2026-11-25',
+          date: '2026-11-30',
           startTime: '10:00',
           endTime: '11:00',
           purpose: 'Overlapping Session',
@@ -80,7 +80,7 @@ describe('Conflict Detection & Atomic Slot Lock Transactions', () => {
     const b1 = await bookingService.createBooking(
       {
         resourceId: 'res-test-conflict',
-        date: '2026-11-25',
+        date: '2026-11-30',
         startTime: '09:00',
         endTime: '10:00',
         purpose: 'Morning session',
@@ -91,7 +91,7 @@ describe('Conflict Detection & Atomic Slot Lock Transactions', () => {
     const b2 = await bookingService.createBooking(
       {
         resourceId: 'res-test-conflict',
-        date: '2026-11-25',
+        date: '2026-11-30',
         startTime: '10:00',
         endTime: '11:00',
         purpose: 'Next session',
@@ -108,7 +108,7 @@ describe('Conflict Detection & Atomic Slot Lock Transactions', () => {
       bookingService.createBooking(
         {
           resourceId: 'res-test-conflict',
-          date: '2026-11-25',
+          date: '2026-11-30',
           startTime: '07:00', // Operating starts at 08:00
           endTime: '08:30',
           purpose: 'Early test',

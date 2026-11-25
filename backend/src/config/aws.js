@@ -7,7 +7,7 @@ export const config = {
   dbMode: process.env.DB_MODE || 'local-memory', // 'dynamodb' or 'local-memory'
 
   aws: {
-    region: process.env.AWS_REGION || 'us-east-1',
+    region: process.env.AWS_REGION || 'ap-south-1',
     dynamodbEndpoint: process.env.AWS_DYNAMODB_ENDPOINT || undefined,
     tables: {
       resources: process.env.DYNAMODB_TABLE_RESOURCES || 'CampusSlot-Resources',
@@ -21,7 +21,7 @@ export const config = {
     cognito: {
       userPoolId: process.env.COGNITO_USER_POOL_ID || '',
       clientId: process.env.COGNITO_CLIENT_ID || '',
-      region: process.env.COGNITO_REGION || 'us-east-1',
+      region: process.env.COGNITO_REGION || 'ap-south-1',
     },
   },
 

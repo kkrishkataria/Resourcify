@@ -17,16 +17,6 @@ frontend/dist/
 build/
 lambda-dist/
 *.zip
-terraform/*.zip
-
-# Terraform Local State & Credentials
-terraform/.terraform/
-terraform/.terraform.lock.hcl
-terraform/*.tfstate
-terraform/*.tfstate.*
-terraform/*.tfstate.backup
-terraform/*.tfvars
-!terraform/terraform.tfvars.example
 
 # Logs & Cache
 npm-debug.log*
@@ -39,15 +29,8 @@ yarn-error.log*
 # Testing
 coverage/
 
-# AWS SAM & CDK
-.aws-sam/
-cdk.out/
-
 # Operating System & IDE
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-*.suo
-*.ntvs*
-*.njsproj

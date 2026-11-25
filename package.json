@@ -1,7 +1,7 @@
 {
-  "name": "campusslot-monorepo",
+  "name": "resourcify-monorepo",
   "version": "1.0.0",
-  "description": "CampusSlot – Intelligent Campus Resource Booking and Auto-Allocation System",
+  "description": "Resourcify – Intelligent Campus Resource Booking and Auto-Allocation System",
   "private": true,
   "workspaces": [
     "backend",
@@ -11,9 +11,9 @@
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev": "concurrently -n \"BACKEND,FRONTEND\" -c \"blue,green\" \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build:backend": "npm --prefix backend run build",
     "build:frontend": "npm --prefix frontend run build",
-    "build": "npm run build:backend && npm run build:frontend",
+    "build": "npm run build:frontend",
+    "package:backend": "npm --prefix backend run package:lambda",
     "test:backend": "npm --prefix backend test",
     "test": "npm run test:backend",
     "seed": "npm --prefix backend run seed"
