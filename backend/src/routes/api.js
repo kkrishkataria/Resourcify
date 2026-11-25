@@ -8,8 +8,19 @@ import { authController } from '../controllers/authController.js';
 import { authenticate } from '../middlewares/authMiddleware.js';
 import { requireRole } from '../middlewares/roleMiddleware.js';
 import { checkInService } from '../services/checkinService.js';
+import { seedDatabase } from '../seeds/seed.js';
 
 const router = Router();
+
+// Cloud DynamoDB Seeding endpoint
+router.all('/seed', async (req, res, next) => {
+  try {
+    await seedDatabase();
+    res.json({ success: true, message: 'Thapar campus facilities and default accounts seeded successfully into DynamoDB.' });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Real Authentication routes
 router.post('/auth/register', (req, res, next) => authController.register(req, res, next));
