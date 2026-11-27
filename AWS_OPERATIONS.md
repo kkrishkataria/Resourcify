@@ -1,5 +1,5 @@
 # Resourcify – AWS Manual Console Deployment & Operations Guide
-### Region: AWS Mumbai (`ap-south-1`) | 100% AWS Free Tier Suitable
+### Primary Region: Asia Pacific Sydney (`ap-southeast-2`) / Mumbai (`ap-south-1`) | 100% AWS Free Tier Suitable
 
 This guide provides complete, step-by-step instructions to configure, deploy, operate, and maintain **Resourcify** manually through the **AWS Management Console** without Terraform, CloudFormation, or any Infrastructure-as-Code tooling.
 
@@ -7,30 +7,27 @@ This guide provides complete, step-by-step instructions to configure, deploy, op
 
 ## 🏛️ Architecture & Free Tier Compatibility
 
-Every service utilized in Resourcify fits inside the **AWS Free Tier**:
+Resourcify uses a modern, 100% serverless, event-driven cloud architecture. Every service fits inside the **AWS Free Tier**:
 
 | Service | Role | AWS Free Tier Allowance | Manual Console Configuration |
 | :--- | :--- | :--- | :--- |
-| **Amazon DynamoDB** | Database & 30-min Atomic Slot Locks | 25 GB storage & 25 WCU / 25 RCU free forever | 4 On-Demand tables with TTL |
-| **AWS Lambda** | Express REST API & Auto-Release Cron | 1 Million free requests/mo & 3.2M sec compute | Node.js 20.x runtime (`resourcify-backend.zip`) |
-| **Amazon API Gateway** | HTTP API routing | 1 Million free API calls/mo for 12 months | Low-latency HTTP API with CORS |
-| **Amazon Cognito** | User Pool & JWT authentication | 50,000 Monthly Active Users (MAUs) free | User Pool + SPA App Client |
-| **Amazon S3** | React frontend hosting | 5 GB standard storage free for 12 months | Private bucket with OAC |
-| **Amazon CloudFront** | CDN distribution & HTTPS | 1 TB data transfer out & 10M requests/mo | Custom error page for React SPA |
+| **Amazon DynamoDB** | Database & 30-min Atomic Slot Locks | 25 GB storage & 25 WCU / 25 RCU free forever | 4 On-Demand tables with TTL on `expiresAt` |
+| **AWS Lambda** | Express REST API & Auto-Release Worker | 1 Million free requests/mo & 3.2M sec compute | Node.js 20.x runtime (`resourcify-backend.zip`) |
+| **Amazon API Gateway** | HTTP API routing & CORS preflight | 1 Million free API calls/mo for 12 months | Low-latency HTTP API with proxy integration |
+| **Amazon S3** | React frontend hosting | 5 GB standard storage free for 12 months | Static Website Hosting or private OAC |
 | **Amazon EventBridge** | 5-minute auto-release scheduler | Free default bus events | Rate rule `rate(5 minutes)` targeting Lambda |
-| **Amazon SNS** | Real-time booking notifications | 1 Million mobile/email publishes free/mo | Standard FIFO-free Topic |
 | **Amazon CloudWatch** | Serverless telemetry & logs | 5 GB ingestion & 10 metric alarms free | Automatic Lambda Log Groups |
 
-> **Cost Safety Note:** There are **zero** continuously running EC2 servers, NAT Gateways, or managed RDS databases. Costs remain **\$0.00** when following this guide under normal usage.
+> **Cost Safety Note:** There are **zero** continuously running EC2 servers, NAT Gateways, or managed RDS databases. Costs remain **$0.00** when following this guide under normal usage.
 
 ---
 
-## 📋 Pre-Deployment: Build Application Bundles
+## 📋 Pre-Deployment: Build Application Bundles Locally
 
-Before opening the AWS Console, package the backend Lambda archive and compile the frontend React production build locally:
+Before opening the AWS Console, package the backend Lambda archive and compile the frontend React production build:
 
 ```bash
-# 1. Package backend for AWS Lambda (generates resourcify-backend.zip at root)
+# 1. Package backend for AWS Lambda (generates resourcify-backend.zip at root, ~5.3 MB)
 npm run package:backend
 
 # 2. Compile frontend static assets (generates frontend/dist/)
@@ -41,7 +38,7 @@ npm run build:frontend
 
 ## Step 1: Create Amazon DynamoDB Tables
 
-Sign in to the [AWS Management Console](https://console.aws.amazon.com/) and ensure the region dropdown in the top-right navbar is set to **Asia Pacific (Mumbai) `ap-south-1`**.
+Sign in to the [AWS Management Console](https://console.aws.amazon.com/) and ensure the region dropdown in the top-right navbar is set to your active region (e.g. **Asia Pacific (Sydney) `ap-southeast-2`**).
 
 Navigate to **DynamoDB** $\rightarrow$ **Tables** $\rightarrow$ **Create table**. Create the following 4 tables:
 
@@ -50,7 +47,7 @@ Navigate to **DynamoDB** $\rightarrow$ **Tables** $\rightarrow$ **Create table**
 * **Partition key:** `id` (String)
 * **Table settings:** Select **Customize settings**
   * **Table class:** DynamoDB Standard
-  * **Capacity calculator / Read/write capacity:** Select **On-demand** (Pay-per-request, zero idle cost)
+  * **Capacity mode:** Select **On-demand** (Pay-per-request, zero idle cost)
 * Click **Create table**.
 
 ### 1.2 `CampusSlot-Bookings` (Reservations & Check-In State)
@@ -58,11 +55,9 @@ Navigate to **DynamoDB** $\rightarrow$ **Tables** $\rightarrow$ **Create table**
 * **Partition key:** `id` (String)
 * **Table settings:** Select **Customize settings** $\rightarrow$ **On-demand**
 * Click **Create table**.
-* Once created, click on `CampusSlot-Bookings` $\rightarrow$ **Indexes** $\rightarrow$ **Create index**:
-  * **Partition key:** `resourceId` (String)
-  * **Sort key:** `date` (String)
-  * **Index name:** `resourceId-date-index`
-  * **Attribute projections:** All
+* *(Optional GSI)* Once created, click on `CampusSlot-Bookings` $\rightarrow$ **Indexes** $\rightarrow$ **Create index**:
+  * **Partition key:** `resourceId` (String), **Sort key:** `date` (String)
+  * **Index name:** `resourceId-date-index`, **Attribute projections:** All
   * Click **Create index**.
 
 ### 1.3 `CampusSlot-SlotLocks` (30-Min Atomic Concurrency Locks & TTL)
@@ -74,7 +69,7 @@ Navigate to **DynamoDB** $\rightarrow$ **Tables** $\rightarrow$ **Create table**
   * Open `CampusSlot-SlotLocks` $\rightarrow$ **Additional settings** tab.
   * Under **Time to Live (TTL)**, click **Turn on**.
   * **TTL attribute name:** Enter `expiresAt`.
-  * Click **Turn on TTL**. *(DynamoDB will now auto-purge old slot locks without consuming write capacity).*
+  * Click **Turn on TTL**. *(DynamoDB will auto-purge old slot locks without consuming write capacity).*
 
 ### 1.4 `CampusSlot-Users` (Registered Accounts & Role Data)
 * **Table name:** `CampusSlot-Users`
@@ -89,73 +84,37 @@ Navigate to **DynamoDB** $\rightarrow$ **Tables** $\rightarrow$ **Create table**
 Navigate to **IAM** $\rightarrow$ **Roles** $\rightarrow$ **Create role**:
 1. **Trusted entity type:** Select **AWS service**.
 2. **Use case:** Select **Lambda** $\rightarrow$ Click **Next**.
-3. **Add permissions:** Search and attach the following managed policies:
+3. **Add permissions:** Search and attach:
    * `AWSLambdaBasicExecutionRole` (allows CloudWatch logging)
+   * `AmazonDynamoDBFullAccess` (allows read/write to the 4 DynamoDB tables)
 4. Click **Next**.
-5. **Role name:** Enter `ResourcifyLambdaExecutionRole`.
+5. **Role name:** Enter `CampusSlotLambdaRole`.
 6. Click **Create role**.
 
-### Add Inline Policy for DynamoDB & SNS Access:
-1. Click on `ResourcifyLambdaExecutionRole` $\rightarrow$ **Add permissions** $\rightarrow$ **Create inline policy**.
-2. Switch to the **JSON** editor and paste:
-   ```json
-   {
-     "Version": "2012-10-17",
-     "Statement": [
-       {
-         "Sid": "DynamoDBTableAccess",
-         "Effect": "Allow",
-         "Action": [
-           "dynamodb:GetItem",
-           "dynamodb:PutItem",
-           "dynamodb:UpdateItem",
-           "dynamodb:DeleteItem",
-           "dynamodb:Scan",
-           "dynamodb:Query",
-           "dynamodb:BatchWriteItem",
-           "dynamodb:BatchGetItem",
-           "dynamodb:TransactWriteItems"
-         ],
-         "Resource": [
-           "arn:aws:dynamodb:ap-south-1:*:table/CampusSlot-*",
-           "arn:aws:dynamodb:ap-south-1:*:table/CampusSlot-*/index/*"
-         ]
-       },
-       {
-         "Sid": "SNSPublishAccess",
-         "Effect": "Allow",
-         "Action": [
-           "sns:Publish"
-         ],
-         "Resource": "arn:aws:sns:ap-south-1:*:CampusSlot-Notifications"
-       }
-     ]
-   }
-   ```
-3. Click **Next**, name the policy `ResourcifyDynamoDBSNSPolicy`, and click **Create policy**.
+*(Note: If you let Lambda auto-create the role on creation, simply open the created role in IAM, click **Add permissions** $\rightarrow$ **Attach policies**, and attach `AmazonDynamoDBFullAccess`).*
 
 ---
 
 ## Step 3: Create & Configure AWS Lambda Functions
 
-Navigate to **AWS Lambda** $\rightarrow$ **Functions** in `ap-south-1`.
+Navigate to **AWS Lambda** $\rightarrow$ **Functions**.
 
 ### 3.1 Main API Lambda (`CampusSlotApiFunction`)
 1. Click **Create function** $\rightarrow$ Select **Author from scratch**.
 2. **Function name:** `CampusSlotApiFunction`
-3. **Runtime:** **Node.js 20.x**
+3. **Runtime:** Select **Node.js 20.x** (or **Node.js 22.x**).
 4. **Architecture:** `x86_64`
-5. **Permissions:** Expand *Change default execution role* $\rightarrow$ Select **Use an existing role** $\rightarrow$ Pick `ResourcifyLambdaExecutionRole`.
+5. **Permissions:** Use existing role `CampusSlotLambdaRole` (or auto-create and attach `AmazonDynamoDBFullAccess`).
 6. Click **Create function**.
 
 #### Upload Code Bundle:
-1. In the **Code source** section, click **Upload from** $\rightarrow$ **.zip file**.
+1. In the **Code** tab, click **`Update ▾`** (or **Upload from**) $\rightarrow$ select **Upload a .zip file**.
 2. Select the `resourcify-backend.zip` file created via `npm run package:backend`.
-3. Click **Save** and wait for upload to complete.
+3. Click **Save** and wait for the upload to complete.
 
-#### Configure Runtime & Handler:
+#### Configure Runtime Handler:
 1. Scroll down to **Runtime settings** $\rightarrow$ Click **Edit**.
-2. **Handler:** Change `index.handler` to:
+2. **Handler:** Change `index.handler` (or `index.mjs`) to:
    ```text
    src/lambda.handler
    ```
@@ -163,24 +122,24 @@ Navigate to **AWS Lambda** $\rightarrow$ **Functions** in `ap-south-1`.
 
 #### Configure Environment Variables:
 1. Go to the **Configuration** tab $\rightarrow$ **Environment variables** $\rightarrow$ Click **Edit**.
-2. Add the following key-value pairs:
-   | Key | Value |
-   | :--- | :--- |
-   | `NODE_ENV` | `production` |
-   | `DB_MODE` | `dynamodb` |
-   | `AWS_REGION` | `ap-south-1` |
-   | `DYNAMODB_TABLE_RESOURCES` | `CampusSlot-Resources` |
-   | `DYNAMODB_TABLE_BOOKINGS` | `CampusSlot-Bookings` |
-   | `DYNAMODB_TABLE_SLOT_LOCKS` | `CampusSlot-SlotLocks` |
-   | `DYNAMODB_TABLE_USERS` | `CampusSlot-Users` |
-   | `SLOT_DURATION_MINUTES` | `30` |
-   | `CHECKIN_GRACE_PERIOD_MINUTES`| `15` |
+2. Add the following key-value pairs *(Note: Do NOT add `AWS_REGION` here because AWS Lambda automatically sets it)*:
+
+| Key | Value | Description |
+| :--- | :--- | :--- |
+| `NODE_ENV` | `production` | Production mode |
+| `DB_MODE` | `dynamodb` | Directs backend to read/write real DynamoDB tables |
+| `DYNAMODB_TABLE_RESOURCES` | `CampusSlot-Resources` | Venue table name |
+| `DYNAMODB_TABLE_BOOKINGS` | `CampusSlot-Bookings` | Bookings table name |
+| `DYNAMODB_TABLE_SLOT_LOCKS` | `CampusSlot-SlotLocks` | Slot locks table name |
+| `DYNAMODB_TABLE_USERS` | `CampusSlot-Users` | Users table name |
+| `JWT_SECRET` | `resourcify-production-secret-key-2026` | Secure session signing secret |
+
 3. Click **Save**.
 
-#### General Configuration:
+#### Adjust Timeout:
 * Under **Configuration** $\rightarrow$ **General configuration** $\rightarrow$ Click **Edit**:
   * **Memory:** `512 MB`
-  * **Timeout:** `15 sec`
+  * **Timeout:** `0 min 30 sec` *(prevents cold-start timeout)*
   * Click **Save**.
 
 ---
@@ -189,15 +148,14 @@ Navigate to **AWS Lambda** $\rightarrow$ **Functions** in `ap-south-1`.
 1. Click **Create function** $\rightarrow$ **Author from scratch**.
 2. **Function name:** `CampusSlotAutoReleaseFunction`
 3. **Runtime:** **Node.js 20.x**
-4. **Role:** Use `ResourcifyLambdaExecutionRole`.
-5. Click **Create function**.
-6. Upload the same `resourcify-backend.zip` file.
-7. Under **Runtime settings**, change **Handler** to:
+4. **Role:** Select `CampusSlotLambdaRole`.
+5. Upload the same `resourcify-backend.zip` file.
+6. Under **Runtime settings**, change **Handler** to:
    ```text
    src/lambda.scheduledAutoReleaseHandler
    ```
-8. In **Environment variables**, configure identical variables as `CampusSlotApiFunction`.
-9. Set **Timeout** to `30 sec`.
+7. Configure identical environment variables as `CampusSlotApiFunction`.
+8. Set **Timeout** to `0 min 30 sec`.
 
 ---
 
@@ -205,197 +163,198 @@ Navigate to **AWS Lambda** $\rightarrow$ **Functions** in `ap-south-1`.
 
 Navigate to **API Gateway** $\rightarrow$ Click **Create API**:
 1. Locate **HTTP API** $\rightarrow$ Click **Build**.
-2. **API name:** `CampusSlotApi`
-3. Click **Next**.
+2. Click **Add integration**:
+   * Choose **Lambda**.
+   * Function: Select `CampusSlotApiFunction`.
+3. **API name:** Enter `resourcify-api`.
+4. Click **Next**.
 
 ### Configure Routes:
-1. Under **Configure routes**, click **Add route**:
+1. In the route list:
    * **Method:** `ANY`
    * **Resource path:** `/{proxy+}`
-   * **Integration:** Select **Lambda** $\rightarrow$ Choose `CampusSlotApiFunction`.
-2. Click **Add route**:
-   * **Method:** `GET`
-   * **Resource path:** `/health`
-   * **Integration:** Select **Lambda** $\rightarrow$ Choose `CampusSlotApiFunction`.
+   * **Integration target:** `CampusSlotApiFunction`
+2. *(Optional root route)* Click **Add route**:
+   * **Method:** `ANY`
+   * **Resource path:** `/`
+   * **Integration target:** `CampusSlotApiFunction`
 3. Click **Next**.
-4. **Stage:** Leave stage name as `$default` with Auto-deploy **Enabled**.
+4. **Stage:** Leave as `$default` with Auto-deploy **Enabled**.
 5. Click **Next** $\rightarrow$ Click **Create**.
 
-### Configure CORS:
-1. In the left navigation, select **CORS**.
+### Configure CORS (Critical for Web Browsers):
+1. In the left navigation menu under **Develop**, click **CORS**.
 2. Click **Configure**:
-   * **Access-Control-Allow-Origins:** `*`
-   * **Access-Control-Allow-Methods:** `GET, POST, PUT, DELETE, OPTIONS`
-   * **Access-Control-Allow-Headers:** `Content-Type, Authorization, x-user-id, x-user-role, x-user-email, x-user-name`
-   * **Access-Control-Max-Age:** `300`
+   * **Access-Control-Allow-Origin:** Type `*` and press Enter.
+   * **Access-Control-Allow-Headers:** Type `*` and press Enter.
+   * **Access-Control-Allow-Methods:** Select `GET, POST, PUT, DELETE, OPTIONS, PATCH`.
 3. Click **Save**.
 
-> **Note your API Endpoint:** Copy the **Invoke URL** displayed on the API dashboard (e.g. `https://<api-id>.execute-api.ap-south-1.amazonaws.com`). Your API root is: `https://<api-id>.execute-api.ap-south-1.amazonaws.com/api`.
+> **Note your API URL:** Under **Stages** $\rightarrow$ `$default`, copy the **Invoke URL** (e.g. `https://9xaei7owm1.execute-api.ap-southeast-2.amazonaws.com`). Your API root is `https://<api-id>.execute-api.<region>.amazonaws.com/api`.
 
 ---
 
-## Step 5: Configure Amazon Cognito User Pool
+## Step 5: Seed Campus Facilities & Users to DynamoDB
 
-Navigate to **Cognito** $\rightarrow$ Click **Create user pool**:
-1. **Authentication providers:**
-   * Select **User name** and check **Also allow sign in with verified email address**.
-2. **Password policy:** Cognito defaults (Minimum 8 chars, numbers, uppercase, lowercase, special).
-3. **Multi-factor authentication (MFA):** Select **No MFA** (for Free Tier student usage).
-4. **User account recovery:** Email only.
-5. **Self-service registration:** Keep **Enabled**.
-6. **Required attributes:** Select `name` and `email`.
-7. **Email provider:** Select **Send email with Cognito** (50 emails/day free tier).
-8. **User pool name:** `CampusSlot-UsersPool`
-9. **App client:**
-   * Select **Public client (Single-page app SPA)**.
-   * **App client name:** `CampusSlotWebClient`
-   * **Client secret:** Select **Don't generate a client secret** (required for browser JavaScript SPAs).
-10. Click **Create user pool**.
+With the backend deployed, populate all 9 Thapar University facilities (NVIDIA Supercomputing Lab, Central Library pods, sports courts) and demo accounts (`student@thapar.edu`, `admin@thapar.edu`) into DynamoDB:
 
-> Note your **User Pool ID** (`ap-south-1_xxxxxxxxx`) and **App Client ID**.
+Simply open this URL in your web browser:
+```text
+https://<api-id>.execute-api.<region>.amazonaws.com/api/seed
+```
+*Expected response:*
+```json
+{
+  "success": true,
+  "message": "Thapar campus facilities and default accounts seeded successfully into DynamoDB."
+}
+```
 
----
-
-## Step 6: Configure Amazon SNS Notifications
-
-Navigate to **Amazon SNS** $\rightarrow$ **Topics** $\rightarrow$ Click **Create topic**:
-1. **Type:** Select **Standard**.
-2. **Name:** `CampusSlot-Notifications`
-3. Click **Create topic**.
-4. Copy the **Topic ARN** (e.g. `arn:aws:sns:ap-south-1:<account-id>:CampusSlot-Notifications`).
-
-### Subscribe for Email Alerts:
-1. In topic details, click **Create subscription**:
-   * **Protocol:** Select **Email**.
-   * **Endpoint:** Enter your email address.
-   * Click **Create subscription**.
-2. Check your inbox and click **Confirm subscription**.
-3. Update the `SNS_BOOKING_NOTIFICATIONS_TOPIC_ARN` environment variable in both Lambda functions with this ARN.
+Verify that 9 facilities appear by visiting:
+```text
+https://<api-id>.execute-api.<region>.amazonaws.com/api/resources
+```
 
 ---
 
-## Step 7: Configure Amazon EventBridge (Scheduled No-Show Release)
+## Step 6: Host Frontend on Amazon S3
 
-Navigate to **Amazon EventBridge** $\rightarrow$ **Schedules** (or **Rules**) $\rightarrow$ Click **Create rule**:
-1. **Name:** `CampusSlot-5MinAutoRelease`
-2. **Rule type:** Select **Schedule**.
-3. **Schedule pattern:**
-   * Select **A recurring schedule that runs at a regular rate**.
-   * **Rate expression:** `5` minutes (`rate(5 minutes)`).
-4. Click **Next**.
+### 6.1 Update Local Frontend Config & Build
+In your local project, edit `frontend/.env` to point to your live API Gateway URL:
+```env
+VITE_API_BASE_URL=https://<api-id>.execute-api.<region>.amazonaws.com/api
+VITE_ENABLE_MOCK_AUTH=false
+```
+
+Compile the optimized static bundle:
+```bash
+npm run build:frontend
+```
+This generates your production-ready files in `frontend/dist/`.
+
+---
+
+### 6.2 Method A: S3 Static Website Hosting (Instant & Free Tier, Recommended)
+This method requires **zero account verification**, takes **1 minute**, and is **100% Free Tier**.
+
+1. Navigate to **Amazon S3** $\rightarrow$ Click **Create bucket**.
+2. **Bucket name:** Choose a globally unique name, e.g. `resourcify-web-<yourname>`.
+3. **Region:** Same region (e.g. `ap-southeast-2`).
+4. **Block Public Access:** **Uncheck** *Block all public access*, and check the acknowledgement box.
+5. Click **Create bucket**.
+
+#### Enable Static Website Hosting:
+1. Open your bucket $\rightarrow$ Click the **Properties** tab.
+2. Scroll to the bottom to **Static website hosting** $\rightarrow$ Click **Edit**:
+   * Select **Enable**.
+   * Hosting type: **Host a static website**.
+   * **Index document:** `index.html`
+   * **Error document:** `index.html` *(required for React Single Page App client-side routing)*.
+   * Click **Save changes**.
+3. Copy the **Bucket website endpoint** URL at the bottom of the page.
+
+#### Set Public Read Bucket Policy:
+1. Click the **Permissions** tab $\rightarrow$ Under **Bucket policy**, click **Edit**.
+2. Paste the following JSON (replace `resourcify-web-<yourname>` with your actual bucket name):
+   ```json
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Sid": "PublicReadGetObject",
+               "Effect": "Allow",
+               "Principal": "*",
+               "Action": "s3:GetObject",
+               "Resource": "arn:aws:s3:::resourcify-web-<yourname>/*"
+           }
+       ]
+   }
+   ```
+3. Click **Save changes**.
+
+#### Upload Build Files:
+1. Click the **Objects** tab $\rightarrow$ Click **Upload**.
+2. Upload all contents from `frontend/dist/`:
+   * `index.html`
+   * `favicon.svg`
+   * `assets/` folder
+3. Click **Upload**.
+
+Open your **Bucket website endpoint** URL in your browser — your full-stack campus booking application is live!
+
+---
+
+### 6.3 Method B: Amazon CloudFront CDN (HTTPS Distribution)
+For production deployments requiring custom domains and global edge caching:
+
+1. Navigate to **CloudFront** $\rightarrow$ Click **Create distribution**.
+2. **Origin domain:** Select your S3 bucket.
+3. **Origin access:** Select **Origin access control settings (recommended)** $\rightarrow$ Create OAC.
+4. **Viewer protocol policy:** Select **Redirect HTTP to HTTPS**.
+5. **Default root object:** Enter `index.html`.
+6. Click **Create distribution**.
+7. **Custom Error Pages (for SPA Routing):**
+   * Go to **Error pages** tab $\rightarrow$ **Create custom error response**:
+     * HTTP error: `403: Forbidden` $\rightarrow$ Customize: Yes $\rightarrow$ Path: `/index.html` $\rightarrow$ Code: `200: OK`.
+     * HTTP error: `404: Not Found` $\rightarrow$ Customize: Yes $\rightarrow$ Path: `/index.html` $\rightarrow$ Code: `200: OK`.
+8. Copy the generated S3 bucket policy from CloudFront and paste it into your S3 bucket permissions.
+
+---
+
+## Step 7: Configure Amazon EventBridge (5-Minute No-Show Auto-Release)
+
+To automatically release bookings where the student fails to check in within 15 minutes:
+
+1. Navigate to **Amazon EventBridge** $\rightarrow$ **Schedules** (or **Rules**) $\rightarrow$ Click **Create rule**.
+2. **Name:** `CampusSlot-5MinAutoRelease`
+3. **Rule type:** Select **Schedule**.
+4. **Schedule pattern:**
+   * Recurring rate: `5` minutes (`rate(5 minutes)`).
 5. **Target:**
-   * **Target API:** Select **AWS service** $\rightarrow$ **Lambda function**.
-   * **Function:** Select `CampusSlotAutoReleaseFunction`.
+   * Target: **AWS service** $\rightarrow$ **Lambda function**.
+   * Function: Select `CampusSlotAutoReleaseFunction`.
 6. Click **Next** $\rightarrow$ Click **Create rule**.
 
-*Every 5 minutes, EventBridge will now trigger the worker to reclaim unclaimed slot locks automatically.*
+*(Note: Administrators can also trigger the auto-release job manually anytime from the **Campus Analytics** dashboard by clicking **Run Auto-Release Job**).*
 
 ---
 
-## Step 8: Configure Amazon CloudWatch Logs & Metrics
+## Step 8: Configure Amazon CloudWatch Logs & Monitoring
 
-Lambda automatically creates CloudWatch Log Groups:
 1. Navigate to **CloudWatch** $\rightarrow$ **Log groups**:
    * `/aws/lambda/CampusSlotApiFunction`
    * `/aws/lambda/CampusSlotAutoReleaseFunction`
 2. **Log Retention (Cost Prevention):**
-   * Select the log groups $\rightarrow$ Click **Actions** $\rightarrow$ **Edit retention setting**.
-   * Change from *Never expire* to **7 days** or **14 days** to remain safely within the Free Tier 5 GB log allowance.
-3. **Monitor Metrics:**
-   * Go to **Metrics** $\rightarrow$ **Lambda**: monitor `Invocations`, `Duration`, `Errors`, and `Throttles`.
+   * Select both log groups $\rightarrow$ Click **Actions** $\rightarrow$ **Edit retention setting**.
+   * Change from *Never expire* to **7 days** or **14 days** to stay well within the Free Tier 5 GB log allowance.
+3. **Metrics:**
+   * In Lambda, click the **Monitor** tab to observe Invocations, Duration, and Error rates in real time.
 
 ---
 
-## Step 9: Host Frontend on Amazon S3 & Amazon CloudFront
+## 🧪 End-to-End Verification Checklist
 
-### 9.1 Create S3 Bucket for Static Assets
-1. Navigate to **Amazon S3** $\rightarrow$ **Create bucket**.
-2. **Bucket name:** `resourcify-frontend-<your-aws-account-id>-ap-south-1`
-3. **AWS Region:** `ap-south-1`
-4. **Block Public Access settings:** Keep **Block all public access enabled** (CloudFront will access S3 privately via Origin Access Control).
-5. **Bucket Versioning:** Disabled.
-6. Click **Create bucket**.
-
-### 9.2 Create CloudFront Distribution
-1. Navigate to **CloudFront** $\rightarrow$ **Create distribution**.
-2. **Origin domain:** Select your S3 bucket (`resourcify-frontend-...s3.ap-south-1.amazonaws.com`).
-3. **Origin access:** Select **Origin access control settings (recommended)** $\rightarrow$ Click **Create control setting** $\rightarrow$ Click **Create**.
-4. **Viewer protocol policy:** Select **Redirect HTTP to HTTPS**.
-5. **Allowed HTTP methods:** `GET, HEAD, OPTIONS`.
-6. **Price class:** Select **Use only North America and Europe** or **Use all edge locations** (1 TB/month free).
-7. **Default root object:** Enter `index.html`.
-8. Click **Create distribution**.
-
-### 9.3 Configure SPA Client-Side Routing (Error Pages)
-React Router uses HTML5 pushState. To prevent `403 Forbidden` / `404 Not Found` when refreshing sub-pages (e.g. `/my-bookings`):
-1. In CloudFront distribution details, go to the **Error pages** tab.
-2. Click **Create custom error response**:
-   * **HTTP error code:** `403: Forbidden`
-   * **Customize error response:** Yes
-   * **Response page path:** `/index.html`
-   * **HTTP response code:** `200: OK`
-   * Click **Create**.
-3. Create a second error response for `404: Not Found` pointing to `/index.html` with response code `200: OK`.
-
-### 9.4 Update S3 Bucket Policy
-1. When CloudFront is created, a prompt displays **"The S3 bucket policy needs to be updated"**. Click **Copy policy**.
-2. Go back to S3 $\rightarrow$ Your bucket $\rightarrow$ **Permissions** tab $\rightarrow$ **Bucket policy** $\rightarrow$ Click **Edit**.
-3. Paste the CloudFront policy granting `s3:GetObject` to the CloudFront distribution ARN and click **Save changes**.
-
-### 9.5 Deploy Frontend Build to S3
-In your local project, configure `frontend/.env`:
-```env
-VITE_API_BASE_URL=https://<api-id>.execute-api.ap-south-1.amazonaws.com/api
-```
-Recompile and sync to S3:
-```bash
-npm run build:frontend
-aws s3 sync frontend/dist s3://resourcify-frontend-<your-aws-account-id>-ap-south-1 --delete
-```
-
----
-
-## Step 10: Seed Cloud Database & Test Deployed System
-
-### 10.1 Seed Campus Facilities and Users to DynamoDB
-Set your local environment to target live DynamoDB tables:
-```bash
-# Set temporary session credentials or export in terminal
-export DB_MODE=dynamodb
-export AWS_REGION=ap-south-1
-
-# Run Thapar campus facility and accounts seed
-npm run seed
-```
-This inserts the NVIDIA Deep Learning Lab, Nava Nalanda Pods, LP Lecture Halls, Sports Courts, and demo Student/Professor/Admin accounts directly into your DynamoDB tables.
-
-### 10.2 End-to-End Verification Checklist
-1. **API Health Check:**
-   ```bash
-   curl https://<api-id>.execute-api.ap-south-1.amazonaws.com/health
-   ```
-   *Expected response:* `{"status":"UP","service":"CampusSlot API",...}`
-2. **Access CloudFront Frontend:**
-   * Open `https://<distribution-id>.cloudfront.net` in your browser.
-   * Verify the favicon, Thapar Maroon branding, and venues display cleanly.
-3. **Test Student Booking:**
-   * Sign in using Student Roll No `102203456` / `Thapar@2026`.
-   * Reserve an upcoming 30-min slot.
-   * Verify the slot turns **OCCUPIED** in the UI.
-   * Open AWS Console $\rightarrow$ DynamoDB $\rightarrow$ `CampusSlot-SlotLocks` to observe the atomic lock item (`res-tiet-lab-01#YYYY-MM-DD#HH:MM`).
-4. **Test Check-In & Auto-Release:**
-   * Click **Check In** to confirm the session.
-   * Test the Auto-Release job by clicking **Run Auto-Release Job** on the Admin Console (`/admin/analytics`).
+| Test Item | Verification Procedure | Expected Outcome |
+| :--- | :--- | :--- |
+| **API Health Check** | `curl https://<api-id>.execute-api.<region>.amazonaws.com/health` | `HTTP 200` with `{"status":"UP","service":"CampusSlot API"}` |
+| **Facilities Catalog** | Visit `/api/resources` | Returns array of 9 Thapar facilities with capacities & equipment |
+| **Student Sign-In** | Use auto-fill card **Student (B.Tech)** (`asharma_be22@thapar.edu` / `Thapar@2026`) | Issues signed JWT token, opens Student Dashboard |
+| **Conflict Prevention** | Attempt 2 bookings for the same facility & time slot | First succeeds; second is rejected with `SLOT_CONFLICT` |
+| **Past Slot Rejection** | Attempt to book a time slot in the past | Rejected with `PAST_TIME_SLOT` error |
+| **Auto-Allocation** | Submit auto-allocation request with capacity requirements | Recommends optimal venue with minimum wasted seats |
+| **Admin Analytics** | Sign in as **Chief Estate Officer** (`admin@thapar.edu`) $\rightarrow$ `/admin/analytics` | Displays live telemetry, peak hours, category utilization |
+| **Auto-Release** | Click **Run Auto-Release Job** on Analytics page | Scans and releases expired unattended check-in reservations |
 
 ---
 
 ## 🗑️ Teardown Guide (Delete All Cloud Resources)
 
-If you wish to stop all AWS cloud usage completely:
-1. **CloudFront:** Disable the distribution, wait ~3 minutes until disabled, then click **Delete**.
-2. **S3:** Empty the `resourcify-frontend-...` bucket, then click **Delete**.
-3. **API Gateway:** Select `CampusSlotApi` $\rightarrow$ **Actions** $\rightarrow$ **Delete**.
-4. **Lambda:** Delete `CampusSlotApiFunction` and `CampusSlotAutoReleaseFunction`.
+To stop all AWS cloud usage and cleanly remove all resources:
+1. **S3:** Open your bucket (`resourcify-web-...`) $\rightarrow$ Click **Empty** $\rightarrow$ Click **Delete**.
+2. **CloudFront (if used):** Disable the distribution, wait until disabled, then click **Delete**.
+3. **API Gateway:** Select `resourcify-api` $\rightarrow$ Click **Delete**.
+4. **Lambda:** Select and delete `CampusSlotApiFunction` and `CampusSlotAutoReleaseFunction`.
 5. **DynamoDB:** Delete the 4 tables (`CampusSlot-Resources`, `CampusSlot-Bookings`, `CampusSlot-SlotLocks`, `CampusSlot-Users`).
-6. **Cognito & SNS:** Delete `CampusSlot-UsersPool` and topic `CampusSlot-Notifications`.
-7. **IAM:** Delete role `ResourcifyLambdaExecutionRole`.
+6. **EventBridge:** Delete the `CampusSlot-5MinAutoRelease` rule.
+7. **CloudWatch:** Delete `/aws/lambda/CampusSlotApiFunction` and `/aws/lambda/CampusSlotAutoReleaseFunction` log groups.
+8. **IAM:** Delete the role `CampusSlotLambdaRole`.
